@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill开发流程图 - 共创与严选结合</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --accent-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --warm-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --deep-purple: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+            --ocean-blue: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --dark-bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.2);
+            --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--dark-bg);
+            min-height: 100vh;
+            padding: 40px 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(240, 147, 251, 0.1) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .row {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            align-items: stretch;
+            flex-wrap: wrap;
+            width: 100%;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .row:nth-child(2) { animation-delay: 0.1s; }
+        .row:nth-child(3) { animation-delay: 0.2s; }
+        .row:nth-child(4) { animation-delay: 0.3s; }
+        .row:nth-child(5) { animation-delay: 0.4s; }
+        .row:nth-child(6) { animation-delay: 0.5s; }
+        .row:nth-child(7) { animation-delay: 0.6s; }
+
+        .step-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 32px 28px;
+            min-width: 280px;
+            max-width: 340px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            backdrop-filter: blur(20px);
+        }
+
+        .step-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .step-card.step-1::before { background: var(--primary-gradient); }
+        .step-card.step-2::before { background: var(--secondary-gradient); }
+        .step-card.step-3::before { background: var(--success-gradient); }
+        .step-card.step-4::before { background: var(--accent-gradient); }
+        .step-card.step-5::before { background: var(--warm-gradient); }
+        .step-card.step-6::before { background: var(--deep-purple); }
+        .step-card.step-7::before { background: var(--ocean-blue); }
+
+        .step-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-1 .step-number { background: var(--primary-gradient); }
+        .step-2 .step-number { background: var(--secondary-gradient); }
+        .step-3 .step-number { background: var(--success-gradient); }
+        .step-4 .step-number { background: var(--accent-gradient); }
+        .step-5 .step-number { background: var(--warm-gradient); }
+        .step-6 .step-number { background: var(--deep-purple); }
+        .step-7 .step-number { background: var(--ocean-blue); }
+
+        .step-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .step-owner {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-light);
+            background: rgba(102, 126, 234, 0.1);
+            padding: 8px 16px;
+            border-radius: 100px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .step-description {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            line-height: 1.7;
+        }
+
+        .arrow-container {
+            display: flex;
+            justify-content: center;
+            margin: -10px 0;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .arrow {
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(180deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
+            position: relative;
+        }
+
+        .arrow::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid rgba(118, 75, 162, 0.8);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 12px;
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .multi-step {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, rgba(255, 216, 155, 0.2) 0%, rgba(25, 84, 123, 0.2) 100%);
+            border: 2px solid rgba(255, 216, 155, 0.5);
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .step-card.highlight {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .step-card { min-width: 100%; max-width: 100%; }
+            .row { flex-direction: column; align-items: center; }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #64748b;
+            font-size: 0.9rem;
+            padding: 20px;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.co-creation { background: var(--primary-gradient); }
+        .legend-dot.planning { background: var(--secondary-gradient); }
+        .legend-dot.experience { background: var(--success-gradient); }
+        .legend-dot.development { background: var(--accent-gradient); }
+        .legend-dot.acceptance { background: var(--warm-gradient); }
+        .legend-dot.operation { background: var(--deep-purple); }
+        .legend-dot.feedback { background: var(--ocean-blue); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Skill开发流程</h1>
+            <p class="subtitle">共创与严选结合的完整流程体系</p>
+        </header>
+
+        <div class="flowchart">
+            <!-- 步骤1：共创 -->
+            <div class="row">
+                <div class="step-card step-1" onclick="toggleHighlight(this)">
+                    <div class="step-number">01</div>
+                    <h2 class="step-title">共创</h2>
+                    <div class="step-owner">全体参与</div>
+                    <p class="step-description">汇聚各方智慧，共同探讨Skill开发方向与需求</p>
+                </div>
+            </div>
+
+            <div class="arrow-container">
+                <div class="arrow"></div>
+            </div>
+
+            <!-- 步骤2：ALL主动规划 -->
+            <div class="row">
+                <div class="step-card step-2" onclick="toggleHighlight(this)">
+                    <div class="step-number">02</div>
+                    <h2 class="step-title">ALL主动规划</h2>
+                    <div class="step-owner">全体成员</div>
+                    <p class="step-description">全员主动参与，制定详细的Skill开发规划与路线图</p>
+                </div>
+            </div>
+
+            <div class="arrow-container">
+                <div class="arrow"></div>
+            </div>
+
+            <!-- 步骤3：经验固化 -->
+            <div class="row">
+                <div class="step-card step-3" onclick="toggleHighlight(this)">
+                    <div class="step-number">03</div>
+                    <h2 class="step-title">经验固化</h2>
+                    <div class="step-owner">持续运营能力中心</div>
+                    <p class="step-description">将成功经验与最佳实践进行标准化固化</p>
+                </div>
+            </div>
+
+            <div class="arrow-container">
+                <div class="arrow"></div>
+            </div>
+
+            <!-- 步骤4：开发 -->
+            <div class="row">
+                <div class="step-card step-4" onclick="toggleHighlight(this)">
+                    <div class="step-number">04</div>
+                    <h2 class="step-title">开发</h2>
+                    <div class="step-owner">持续运营能力中心</div>
+                    <p class="step-description">基于固化的经验和规范进行Skill开发实现</p>
+                </div>
+            </div>
+
+            <div class="arrow-container">
+                <div class="arrow"></div>
+            </div>
+
+            <!-- 步骤5：验收，严选标签 -->
+            <div class="row">
+                <div class="step-card step-5 highlight" onclick="toggleHighlight(this)">
+                    <div class="step-number">05</div>
+                    <h2 class="step-title">验收，严选标签</h2>
+                    <div class="step-owner">架构组、DTSE、平台组</div>
+                    <p class="step-description">多部门联合验收，通过后授予严选标签</p>
+                    <span class="tag">严选认证</span>
+                </div>
+            </div>
+
+            <div class="arrow-container">
+                <div class="arrow"></div>
+            </div>
+
+            <!-- 步骤6：持续运营 -->
+            <div class="row">
+                <div class="step-card step-6" onclick="toggleHighlight(this)">
+                    <div class="step-number">06</div>
+                    <h2 class="step-title">持续运营</h2>
+                    <div class="step-owner">持续运营能力中心</div>
+                    <p class="step-description">按责任田分工，负责Skill的日常运营与维护</p>
+                </div>
+            </div>
+
+            <div class="arrow-container">
+                <div class="arrow"></div>
+            </div>
+
+            <!-- 步骤7：收集反馈 -->
+            <div class="row">
+                <div class="step-card step-7" onclick="toggleHighlight(this)">
+                    <div class="step-number">07</div>
+                    <h2 class="step-title">收集反馈</h2>
+                    <div class="step-owner">平台、运营</div>
+                    <p class="step-description">持续收集用户反馈，驱动Skill迭代优化</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图例 -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-dot co-creation"></div>
+                <span>共创阶段</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot planning"></div>
+                <span>规划阶段</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot experience"></div>
+                <span>经验固化</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot development"></div>
+                <span>开发实现</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot acceptance"></div>
+                <span>严选验收</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot operation"></div>
+                <span>持续运营</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot feedback"></div>
+                <span>反馈收集</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 Skill开发流程管理体系</p>
+        </div>
+    </div>
+
+    <script>
+        function toggleHighlight(element) {
+            element.classList.toggle('highlight');
+        }
+
+        // 添加滚动动画效果
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.row').forEach(row => {
+            observer.observe(row);
+        });
+    </script>
+</body>
+</html>

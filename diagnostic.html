@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>诊断工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #f0f2f5;
+        }
+        
+        h1 {
+            color: #1890FF;
+            text-align: center;
+        }
+        
+        .test-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .success {
+            background: #f6ffed;
+            border: 1px solid #52c41a;
+            color: #389e0d;
+        }
+        
+        .error {
+            background: #fff2f0;
+            border: 1px solid #f5222d;
+            color: #cf1322;
+        }
+        
+        .info {
+            background: #e6f7ff;
+            border: 1px solid #1890ff;
+            color: #096dd9;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: #1890FF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0050b3;
+        }
+        
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ok {
+            background: #52c41a;
+        }
+        
+        .status-fail {
+            background: #f5222d;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 RVTools分析工具 - 诊断工具</h1>
+    
+    <div class="test-box">
+        <h2>1. 环境检测</h2>
+        <div id="envStatus"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>2. 文件上传测试</h2>
+        <input type="file" id="testFileInput" accept=".xlsx,.xls" style="display:block; margin: 10px 0;">
+        <button onclick="testFileSelection()">测试文件选择</button>
+        <div id="fileStatus"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>3. Excel解析测试</h2>
+        <button onclick="testExcelParsing()">测试Excel解析</button>
+        <div id="parseStatus"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>4. 主应用测试</h2>
+        <button onclick="testMainApp()">打开主应用</button>
+        <div id="appStatus"></div>
+    </div>
+
+    <script>
+        // 运行诊断
+        function runDiagnostics() {
+            const envStatus = document.getElementById('envStatus');
+            let html = '';
+            
+            // 检查FileReader
+            const hasFileReader = typeof FileReader !== 'undefined';
+            html += `<div class="test-result ${hasFileReader ? 'success' : 'error'}">`;
+            html += `<span class="status-indicator ${hasFileReader ? 'status-ok' : 'status-fail'}"></span>`;
+            html += `FileReader API: ${hasFileReader ? '✅ 支持' : '❌ 不支持'}`;
+            html += `</div>`;
+            
+            // 检查XLSX
+            const hasXLSX = typeof XLSX !== 'undefined';
+            html += `<div class="test-result ${hasXLSX ? 'success' : 'error'}">`;
+            html += `<span class="status-indicator ${hasXLSX ? 'status-ok' : 'status-fail'}"></span>`;
+            html += `XLSX库: ${hasXLSX ? '✅ 已加载' : '❌ 未加载'}`;
+            html += `</div>`;
+            
+            // 检查Chart.js
+            const hasChart = typeof Chart !== 'undefined';
+            html += `<div class="test-result ${hasChart ? 'success' : 'error'}">`;
+            html += `<span class="status-indicator ${hasChart ? 'status-ok' : 'status-fail'}"></span>`;
+            html += `Chart.js: ${hasChart ? '✅ 已加载' : '❌ 未加载'}`;
+            html += `</div>`;
+            
+            // 检查jsPDF
+            const hasPDF = typeof jspdf !== 'undefined';
+            html += `<div class="test-result ${hasPDF ? 'success' : 'error'}">`;
+            html += `<span class="status-indicator ${hasPDF ? 'status-ok' : 'status-fail'}"></span>`;
+            html += `jsPDF: ${hasPDF ? '✅ 已加载' : '❌ 未加载'}`;
+            html += `</div>`;
+            
+            envStatus.innerHTML = html;
+        }
+        
+        function testFileSelection() {
+            const input = document.getElementById('testFileInput');
+            const status = document.getElementById('fileStatus');
+            
+            // 手动触发文件选择
+            const event = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+            });
+            input.dispatchEvent(event);
+            
+            // 监听文件选择
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    let html = `<div class="test-result success">✅ 文件已选择!</div>`;
+                    html += `<div class="test-result info">文件名: ${file.name}</div>`;
+                    html += `<div class="test-result info">文件大小: ${(file.size / 1024 / 1024).toFixed(2)} MB</div>`;
+                    html += `<div class="test-result info">文件类型: ${file.type || 'unknown'}</div>`;
+                    status.innerHTML = html;
+                } else {
+                    status.innerHTML = `<div class="test-result error">❌ 未选择文件</div>`;
+                }
+            };
+        }
+        
+        function testExcelParsing() {
+            const status = document.getElementById('parseStatus');
+            status.innerHTML = `<div class="test-result info">请先选择一个Excel文件...</div>`;
+            
+            const input = document.getElementById('testFileInput');
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    status.innerHTML = `<div class="test-result error">❌ 请先选择文件</div>`;
+                    return;
+                }
+                
+                status.innerHTML = `<div class="test-result info">正在读取文件...</div>`;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        let html = `<div class="test-result success">✅ Excel解析成功!</div>`;
+                        html += `<div class="test-result info">工作表数量: ${workbook.SheetNames.length}</div>`;
+                        html += `<div class="test-result info">工作表名称:</div>`;
+                        
+                        workbook.SheetNames.forEach(name => {
+                            html += `<div class="test-result" style="margin-left: 20px;">• ${name}</div>`;
+                        });
+                        
+                        // 尝试解析Vinfo表
+                        const vinfoSheet = workbook.SheetNames.find(name => 
+                            name.toLowerCase().includes('vinfo')
+                        );
+                        
+                        if (vinfoSheet) {
+                            const data = XLSX.utils.sheet_to_json(workbook.Sheets[vinfoSheet]);
+                            html += `<div class="test-result success">✅ 找到Vinfo表，数据行数: ${data.length}</div>`;
+                        } else {
+                            html += `<div class="test-result error">❌ 未找到Vinfo表</div>`;
+                        }
+                        
+                        status.innerHTML = html;
+                    } catch (error) {
+                        status.innerHTML = `<div class="test-result error">❌ 解析失败: ${error.message}</div>`;
+                    }
+                };
+                
+                reader.onerror = function() {
+                    status.innerHTML = `<div class="test-result error">❌ 文件读取失败</div>`;
+                };
+                
+                reader.readAsArrayBuffer(file);
+            };
+            
+            input.click();
+        }
+        
+        function testMainApp() {
+            const status = document.getElementById('appStatus');
+            status.innerHTML = `<div class="test-result info">正在打开主应用...</div>`;
+            
+            // 打开新窗口
+            window.open('index.html', '_blank');
+            
+            setTimeout(() => {
+                status.innerHTML = `<div class="test-result success">✅ 主应用已在新窗口打开</div>`;
+                status.innerHTML += `<div class="test-result info">提示: 打开开发者工具(F12)查看控制台日志</div>`;
+            }, 500);
+        }
+        
+        // 页面加载时自动运行诊断
+        window.onload = function() {
+            runDiagnostics();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,3286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RVTools VMware虚拟机分析工具 - 华为云迁移评估</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1890FF;
+            --success: #52C41A;
+            --warning: #FAAD14;
+            --danger: #F5222D;
+            --bg-light: #F0F2F5;
+            --bg-white: #FFFFFF;
+            --text-primary: #262626;
+            --text-secondary: #8C8C8C;
+            --border: #D9D9D9;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1890FF 0%, #0050B3 100%);
+            color: white;
+            padding: 24px 40px;
+            box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .upload-area {
+            background: var(--bg-white);
+            border: 3px dashed var(--primary);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--success);
+            background: #F6FFED;
+            border-style: solid;
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            font-size: 20px;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        #fileInput {
+            display: block !important;
+            margin: 0 auto;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 12px;
+            background: #E6F7FF;
+            border-radius: 8px;
+            color: var(--primary);
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .error-message {
+            margin-top: 20px;
+            padding: 12px;
+            background: #FFF2F0;
+            border: 1px solid var(--danger);
+            border-radius: 8px;
+            color: var(--danger);
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .options-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .option-card {
+            background: var(--bg-white);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .option-card label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .option-card select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .option-card select:hover {
+            border-color: var(--primary);
+        }
+
+        .option-card select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 40px;
+            background: white;
+            border-radius: 16px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-white);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .analysis-section {
+            background: var(--bg-white);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .subsection-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 16px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+        }
+
+        .chart-container-small {
+            height: 250px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-light);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        td {
+            text-align: center;
+        }
+
+        td:first-child, th:first-child {
+            text-align: left;
+        }
+
+        tr:hover {
+            background: #f8f8f8;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin: 40px 0;
+        }
+
+        .export-btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .export-btn-secondary {
+            background: white;
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+        }
+
+        .export-btn-secondary:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .export-btn-primary {
+            background: var(--primary);
+            color: white;
+            border: 2px solid var(--primary);
+        }
+
+        .export-btn-primary:hover {
+            background: #0050B3;
+            border-color: #0050B3;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .os-type-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .os-type-card.windows {
+            background: linear-gradient(135deg, #1890FF 0%, #0050B3 100%);
+        }
+
+        .os-type-card.linux {
+            background: linear-gradient(135deg, #52C41A 0%, #389e0d 100%);
+        }
+
+        .os-type-card.others {
+            background: linear-gradient(135deg, #FAAD14 0%, #d48806 100%);
+        }
+
+        .os-type-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .os-type-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .os-type-percent {
+            font-size: 18px;
+            margin-top: 8px;
+        }
+
+        .os-type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .comparison-card {
+            transition: transform 0.3s ease;
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-5px);
+        }
+
+        #huaweiMappingTable th {
+            background: linear-gradient(135deg, #1890FF 0%, #0050B3 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            padding: 12px 10px;
+            font-size: 13px;
+        }
+
+        #huaweiMappingTable td {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        #huaweiMappingTable tbody tr:hover {
+            background: rgba(24, 144, 255, 0.05);
+        }
+
+        .info-box {
+            margin-bottom: 20px;
+        }
+
+        .info-box h4 {
+            margin-bottom: 12px;
+        }
+
+        .info-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .info-box li {
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 1200px) {
+            .comparison-container {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            .os-type-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            #huaweiMappingTable {
+                font-size: 12px;
+            }
+
+            #huaweiMappingTable th,
+            #huaweiMappingTable td {
+                padding: 6px 4px;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 RVTools VMware虚拟机分析工具</h1>
+        <p>基于华为云的VMware迁移评估与资源规划</p>
+    </div>
+
+    <div class="container">
+        <!-- 上传区域 -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">选择您的RVTools Excel文件</div>
+            
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            
+            <div class="file-info" id="fileInfo"></div>
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <!-- 配置选项 -->
+        <div class="options-container" id="optionsContainer">
+            <!-- Region选择 -->
+            <div class="option-card">
+                <label for="regionSelect">🌍 华为云Region选择</label>
+                <select id="regionSelect">
+                    <option value="cn-north-4">华北-北京四 (cn-north-4)</option>
+                    <option value="cn-north-1">华北-北京一 (cn-north-1)</option>
+                    <option value="cn-north-9">华北-乌兰察布一 (cn-north-9)</option>
+                    <option value="cn-north-2">华北-廊坊 (cn-north-2)</option>
+                    <option value="cn-east-3">华东-上海二 (cn-east-3)</option>
+                    <option value="cn-east-2">华东-上海一 (cn-east-2)</option>
+                    <option value="cn-south-1">华南-广州 (cn-south-1)</option>
+                    <option value="cn-south-4">华南-深圳 (cn-south-4)</option>
+                    <option value="cn-south-2">华南-广州深圳金融 (cn-south-2)</option>
+                    <option value="cn-southwest-2">西南-贵阳一 (cn-southwest-2)</option>
+                    <option value="cn-southwest-1">西南-成都一 (cn-southwest-1)</option>
+                    <option value="cn-west-2">西北-西安一 (cn-west-2)</option>
+                    <option value="cn-west-3">西北-兰州一 (cn-west-3)</option>
+                    <option value="cn-hk-1">中国-香港 (cn-hk-1)</option>
+                    <option value="ap-southeast-1">东南亚-新加坡 (ap-southeast-1)</option>
+                    <option value="ap-southeast-2">东南亚-曼谷 (ap-southeast-2)</option>
+                    <option value="ap-southeast-3">东南亚-雅加达 (ap-southeast-3)</option>
+                    <option value="ap-southeast-4">东南亚-吉隆坡 (ap-southeast-4)</option>
+                    <option value="ap-southeast-5">东南亚-胡志明市 (ap-southeast-5)</option>
+                    <option value="ap-southeast-6">东南亚-雅加达 (ap-southeast-6)</option>
+                    <option value="ap-northeast-1">亚太-东京 (ap-northeast-1)</option>
+                    <option value="ap-northeast-2">亚太-首尔 (ap-northeast-2)</option>
+                    <option value="ap-south-1">亚太-孟买 (ap-south-1)</option>
+                    <option value="na-north-1">北美-弗吉尼亚 (na-north-1)</option>
+                    <option value="na-west-1">北美-加利福尼亚 (na-west-1)</option>
+                    <option value="sa-brazil-1">拉美-圣保罗一 (sa-brazil-1)</option>
+                    <option value="eu-west-100">欧洲-爱尔兰 (eu-west-100)</option>
+                    <option value="eu-west-101">欧洲-巴黎 (eu-west-101)</option>
+                    <option value="af-south-1">非洲-约翰内斯堡 (af-south-1)</option>
+                    <option value="ru-central-1">俄罗斯-莫斯科 (ru-central-1)</option>
+                    <option value="la-north-2">拉美-墨西哥城一 (la-north-2)</option>
+                </select>
+            </div>
+            
+            <!-- 货币类型选择 -->
+            <div class="option-card">
+                <label for="currencySelect">💰 货币类型选择</label>
+                <select id="currencySelect">
+                    <option value="CNY">人民币 (CNY / ¥)</option>
+                    <option value="USD">美金 (USD / $)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 加载中 -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h3>正在分析Excel文件...</h3>
+            <p style="color: #666; margin-top: 10px;">请稍候，这可能需要几秒钟</p>
+        </div>
+
+        <!-- 分析结果 -->
+        <div id="analysisResults" class="hidden">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🖥️</div>
+                    <div class="stat-value" id="totalVMs">0</div>
+                    <div class="stat-label">虚拟机总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-value" id="totalVCPUs">0</div>
+                    <div class="stat-label">vCPU总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-value" id="totalMemory">0 GB</div>
+                    <div class="stat-label">内存总量</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-value" id="totalStorage">0 TB</div>
+                    <div class="stat-label">存储总量</div>
+                </div>
+            </div>
+
+            <div class="analysis-section">
+                <h3 class="section-title">📊 操作系统分布</h3>
+                
+                <!-- 操作系统类型汇总 -->
+                <div style="margin-bottom: 32px;">
+                    <h4 class="subsection-title">🖥️ 操作系统类型汇总</h4>
+                    
+                    <!-- 类型卡片 -->
+                    <div class="os-type-grid">
+                        <div class="os-type-card windows">
+                            <div class="os-type-value" id="windowsCount">0</div>
+                            <div class="os-type-label">Windows</div>
+                            <div class="os-type-percent" id="windowsPercent">0%</div>
+                        </div>
+                        <div class="os-type-card linux">
+                            <div class="os-type-value" id="linuxCount">0</div>
+                            <div class="os-type-label">Linux</div>
+                            <div class="os-type-percent" id="linuxPercent">0%</div>
+                        </div>
+                        <div class="os-type-card others">
+                            <div class="os-type-value" id="othersCount">0</div>
+                            <div class="os-type-label">Others</div>
+                            <div class="os-type-percent" id="othersPercent">0%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 类型图表 -->
+                    <div class="charts-grid" style="margin-top: 20px;">
+                        <div class="chart-container chart-container-small">
+                            <canvas id="osTypePieChart"></canvas>
+                        </div>
+                        <div class="chart-container chart-container-small">
+                            <canvas id="osTypeBarChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 类型统计表 -->
+                    <div class="table-container">
+                        <table id="osTypeTable">
+                            <thead>
+                                <tr>
+                                    <th>操作系统类型</th>
+                                    <th>VM数量</th>
+                                    <th>占比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="osTypeTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 操作系统版本详细分布 -->
+                <div>
+                    <h4 class="subsection-title">📋 操作系统版本详细分布</h4>
+                    
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <canvas id="osChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 版本统计表 -->
+                    <div class="table-container">
+                        <table id="osVersionTable">
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>操作系统版本</th>
+                                    <th>VM数量</th>
+                                    <th>占比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="osVersionTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CPU利用率分析 -->
+            <div class="analysis-section" id="cpuAnalysisSection">
+                <h3 class="section-title">⚡ CPU利用率分析</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-card" style="border-left: 4px solid #52C41A;">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="cpuNormalCount">0</div>
+                        <div class="stat-label">正常 (<5%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #FAAD14;">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-value" id="cpuLightCount">0</div>
+                        <div class="stat-label">轻微竞争 (5-10%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #F5222D;">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-value" id="cpuPressureCount">0</div>
+                        <div class="stat-label">明显压力 (>10%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #722ED1;">
+                        <div class="stat-icon">🚨</div>
+                        <div class="stat-value" id="cpuBottleneckCount">0</div>
+                        <div class="stat-label">严重瓶颈 (>20%)</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container chart-container-small">
+                        <canvas id="cpuPieChart"></canvas>
+                    </div>
+                    <div class="chart-container chart-container-small">
+                        <canvas id="cpuBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="cpuTable">
+                        <thead>
+                            <tr>
+                                <th>CPU利用率区间</th>
+                                <th>状态</th>
+                                <th>VM数量</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cpuTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CPU超分比分析 -->
+            <div class="analysis-section" id="oversubscriptionSection">
+                <h3 class="section-title">📈 CPU超分比分析</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🖥️</div>
+                        <div class="stat-value" id="totalVCPUsDisplay">0</div>
+                        <div class="stat-label">vCPU总量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="physicalCoresDisplay">0</div>
+                        <div class="stat-label">物理Core总量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚙️</div>
+                        <div class="stat-value" id="oversubscriptionRatio">0</div>
+                        <div class="stat-label">CPU超分比</div>
+                    </div>
+                </div>
+
+                <div class="info-box" style="background: #F6FFED; border: 1px solid #52C41A; padding: 16px; border-radius: 8px; margin-top: 20px;">
+                    <h4 style="color: #52C41A; margin-bottom: 12px;">📋 超分比参考标准</h4>
+                    <table style="font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th>超分比范围</th>
+                                <th>状态</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="background: #F6FFED;">
+                                <td><strong>≤ 4:1</strong></td>
+                                <td style="color: #52C41A;">✅ 推荐</td>
+                                <td>适用于大多数生产环境，性能表现良好</td>
+                            </tr>
+                            <tr style="background: #FFFBE6;">
+                                <td><strong>4:1 ~ 8:1</strong></td>
+                                <td style="color: #FAAD14;">⚠️ 警告</td>
+                                <td>需要关注CPU竞争情况，建议监控</td>
+                            </tr>
+                            <tr style="background: #FFF2F0;">
+                                <td><strong>> 8:1</strong></td>
+                                <td style="color: #F5222D;">🚨 危险</td>
+                                <td>高风险区域，可能导致严重性能问题</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 内存利用率分析 -->
+            <div class="analysis-section" id="memoryAnalysisSection">
+                <h3 class="section-title">💾 内存利用率分析</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-card" style="border-left: 4px solid #FAAD14;">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-value" id="memWasteCount">0</div>
+                        <div class="stat-label">严重浪费 (<30%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #52C41A;">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="memNormalCount">0</div>
+                        <div class="stat-label">合理 (30-80%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #F5222D;">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-value" id="memTightCount">0</div>
+                        <div class="stat-label">可能偏紧 (>80%)</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container chart-container-small">
+                        <canvas id="memoryPieChart"></canvas>
+                    </div>
+                    <div class="chart-container chart-container-small">
+                        <canvas id="memoryBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="memoryTable">
+                        <thead>
+                            <tr>
+                                <th>内存利用率区间</th>
+                                <th>状态</th>
+                                <th>VM数量</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memoryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 存储利用率分析 -->
+            <div class="analysis-section" id="storageAnalysisSection">
+                <h3 class="section-title">💿 存储利用率分析</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-card" style="border-left: 4px solid #FAAD14;">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-value" id="storageWasteCount">0</div>
+                        <div class="stat-label">严重浪费 (<30%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #52C41A;">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="storageNormalCount">0</div>
+                        <div class="stat-label">正常 (30-80%)</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #F5222D;">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-value" id="storageFullCount">0</div>
+                        <div class="stat-label">偏满 (>80%)</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container chart-container-small">
+                        <canvas id="storagePieChart"></canvas>
+                    </div>
+                    <div class="chart-container chart-container-small">
+                        <canvas id="storageBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="storageTable">
+                        <thead>
+                            <tr>
+                                <th>存储利用率区间</th>
+                                <th>状态</th>
+                                <th>VM数量</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="storageTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 华为云虚机规格映射 -->
+            <div class="analysis-section" id="huaweiMappingSection">
+                <h3 class="section-title">☁️ 华为云虚机规格映射</h3>
+                
+                <div class="stats-grid" id="huaweiMappingStats">
+                    <div class="stat-card" style="border-left: 4px solid #1890FF;">
+                        <div class="stat-icon">☁️</div>
+                        <div class="stat-value" id="mappedVMCount">0</div>
+                        <div class="stat-label">已映射VM数</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #52C41A;">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-value" id="mappedVcpu">0</div>
+                        <div class="stat-label">映射vCPU总量</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #FAAD14;">
+                        <div class="stat-icon">💾</div>
+                        <div class="stat-value" id="mappedMemory">0 GB</div>
+                        <div class="stat-label">映射内存总量</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #722ED1;">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-value" id="monthlyCost">¥0</div>
+                        <div class="stat-label">月度费用</div>
+                    </div>
+                </div>
+                
+                <div class="info-box" style="background: #E6F7FF; border: 1px solid #1890FF; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: #1890FF; margin-bottom: 12px;">📋 映射规则说明</h4>
+                    <ul style="font-size: 14px; color: #595959; line-height: 1.8; padding-left: 20px;">
+                        <li><strong>vCPU匹配：</strong>选择与源端vCPU接近的机型</li>
+                        <li><strong>参考CPU占用率：</strong>当vCPU一致时，参考CPU占用率</li>
+                        <li><strong>CPU占用率<30%时：</strong>可选择比源端vCPU较小的机型</li>
+                        <li><strong>CPU内存比匹配：</strong>优选>=源端CPU内存比的规格</li>
+                        <li><strong>内存/CPU>8：</strong>选择e系列（超大内存型）</li>
+                        <li><strong>数据库优选：</strong>c/m系列</li>
+                        <li><strong>非数据库优先：</strong>X系列</li>
+                        <li><strong>价格最优：</strong>在满足以上条件的情况下选择价格最优的规格</li>
+                        <li><strong>存储选择：</strong>数据库VM使用通用型SSD V2，其他使用高IO</li>
+                    </ul>
+                </div>
+                
+                <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+                    <table id="huaweiMappingTable">
+                        <thead style="position: sticky; top: 0; background: #f0f2f5; z-index: 10;">
+                            <tr>
+                                <th>VM Name</th>
+                                <th>OS</th>
+                                <th>vCPU</th>
+                                <th>Memory (GB)</th>
+                                <th>CPU Usage (%)</th>
+                                <th>Active Memory (GB)</th>
+                                <th>Provisioned (GB)</th>
+                                <th>In Use (GB)</th>
+                                <th>DB</th>
+                                <th>CPU Memory Ratio</th>
+                                <th>Mem Util (%)</th>
+                                <th>Storage Util (%)</th>
+                                <th>Category</th>
+                                <th>ECS Instance family</th>
+                                <th>ECS Instance Type</th>
+                                <th>vCPU（华为云）</th>
+                                <th>Memory GiB</th>
+                                <th>CPU Memory Ratio</th>
+                                <th>与源端vCPU比较</th>
+                                <th>与源端CPU内存比差异</th>
+                                <th>数据库识别依据</th>
+                                <th>Disk (GB)</th>
+                                <th>Disk Type</th>
+                                <th>Monthly</th>
+                                <th>Yearly(1年)</th>
+                                <th>Yearly(3年)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="huaweiMappingTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 汇总对比 -->
+            <div class="analysis-section" id="summarySection">
+                <h3 class="section-title">📊 资源汇总对比</h3>
+                
+                <div class="comparison-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 24px; margin-bottom: 32px;">
+                    <!-- 源端资源统计 -->
+                    <div class="comparison-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 24px; color: white;">
+                        <h4 style="font-size: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 28px;">🖥️</span>
+                            <span>VMware 源端资源</span>
+                        </h4>
+                        <div style="display: grid; gap: 16px;">
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">虚拟机总数</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryVMwareTotal">0</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">vCPU总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryVcpuTotal">0</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">内存总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryMemoryTotal">0 GB</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">存储总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryStorageTotal">0 TB</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 华为云资源映射 -->
+                    <div class="comparison-card" style="background: linear-gradient(135deg, #1890FF 0%, #0050B3 100%); border-radius: 16px; padding: 24px; color: white;">
+                        <h4 style="font-size: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 28px;">☁️</span>
+                            <span>华为云资源映射</span>
+                        </h4>
+                        <div style="display: grid; gap: 16px;">
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">VM总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryHuaweiVM">0</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">vCPU总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryHuaweiVcpu">0</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">内存总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryHuaweiMemory">0 GB</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">存储总量</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryHuaweiStorage">0 TB</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.25); padding: 16px; border-radius: 10px; margin-top: 8px;">
+                                <div style="font-size: 14px; opacity: 0.9;">月度总费用</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryHuaweiMonthly">¥0</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.25); padding: 16px; border-radius: 10px;">
+                                <div style="font-size: 14px; opacity: 0.9;">年度总费用</div>
+                                <div style="font-size: 28px; font-weight: 700;" id="summaryHuaweiYearly">¥0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 对比表格 -->
+                <div class="table-container">
+                    <table id="summaryComparisonTable">
+                        <thead>
+                            <tr>
+                                <th>资源类型</th>
+                                <th>VMware 源端</th>
+                                <th>华为云 映射</th>
+                                <th>差异</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryComparisonTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="export-buttons">
+                <button class="export-btn export-btn-primary" onclick="exportPDF()">📄 导出PDF报告</button>
+                <button class="export-btn export-btn-secondary" onclick="exportExcel()">📊 导出Excel明细</button>
+                <button class="export-btn export-btn-secondary" onclick="resetApp()">🔄 重新上传</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <button class="export-btn" style="background: #ff9800;" onclick="exportECSDatabase()">💾 导出ECS数据库</button>
+                <button class="export-btn" style="background: #795548;" onclick="importECSDatabase()">📥 导入ECS数据库</button>
+                <button class="export-btn" style="background: #607d8b;" onclick="showECSDatabaseManager()">⚙️ 查看ECS规格</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('='.repeat(60));
+        console.log('🚀 RVTools分析工具已加载');
+        console.log('='.repeat(60));
+        
+        // 华为云ECS规格数据
+        // 华为云ECS规格数据库（完整版本）
+        let huaweiECSInstances = [
+            // === 通用计算增强型 X系列（高性能首选） ===
+            { family: 'x1e', type: 'x1e.xlarge.4', vcpu: 4, memory: 16, maxNic: 8, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 400, priceUSD: 58, description: '通用计算增强型X1e' },
+            { family: 'x1e', type: 'x1e.2xlarge.4', vcpu: 8, memory: 32, maxNic: 8, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 800, priceUSD: 116, description: '通用计算增强型X1e' },
+            { family: 'x1e', type: 'x1e.4xlarge.4', vcpu: 16, memory: 64, maxNic: 16, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 1600, priceUSD: 231, description: '通用计算增强型X1e' },
+            { family: 'x1e', type: 'x1e.8xlarge.4', vcpu: 32, memory: 128, maxNic: 16, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 3200, priceUSD: 462, description: '通用计算增强型X1e' },
+            { family: 'x2e', type: 'x2e.xlarge.4', vcpu: 4, memory: 16, maxNic: 8, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2'], priceCNY: 380, priceUSD: 55, description: '通用计算增强型X2e' },
+            { family: 'x2e', type: 'x2e.2xlarge.4', vcpu: 8, memory: 32, maxNic: 8, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2'], priceCNY: 760, priceUSD: 110, description: '通用计算增强型X2e' },
+            { family: 'x2e', type: 'x2e.4xlarge.4', vcpu: 16, memory: 64, maxNic: 16, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2'], priceCNY: 1520, priceUSD: 220, description: '通用计算增强型X2e' },
+            { family: 'x2e', type: 'x2e.8xlarge.4', vcpu: 32, memory: 128, maxNic: 16, isX: true, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 3040, priceUSD: 439, description: '通用计算增强型X2e' },
+            
+            // === 计算优化型 C系列（数据库首选） ===
+            { family: 'c9', type: 'c9.large.2', vcpu: 2, memory: 4, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 220, priceUSD: 32, description: '通用计算增强型C9' },
+            { family: 'c9', type: 'c9.xlarge.2', vcpu: 4, memory: 8, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 440, priceUSD: 64, description: '通用计算增强型C9' },
+            { family: 'c9', type: 'c9.2xlarge.2', vcpu: 8, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 880, priceUSD: 127, description: '通用计算增强型C9' },
+            { family: 'c9', type: 'c9.4xlarge.2', vcpu: 16, memory: 32, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 1760, priceUSD: 254, description: '通用计算增强型C9' },
+            { family: 'c7', type: 'c7.large.2', vcpu: 2, memory: 4, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 180, priceUSD: 26, description: '通用计算增强型C7' },
+            { family: 'c7', type: 'c7.xlarge.2', vcpu: 4, memory: 8, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 360, priceUSD: 52, description: '通用计算增强型C7' },
+            { family: 'c7', type: 'c7.2xlarge.2', vcpu: 8, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 720, priceUSD: 104, description: '通用计算增强型C7' },
+            { family: 'c7', type: 'c7.4xlarge.2', vcpu: 16, memory: 32, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 1440, priceUSD: 208, description: '通用计算增强型C7' },
+            { family: 'c7', type: 'c7.8xlarge.2', vcpu: 32, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 2880, priceUSD: 416, description: '通用计算增强型C7' },
+            { family: 'c7', type: 'c7.large.4', vcpu: 2, memory: 8, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 220, priceUSD: 32, description: '通用计算增强型C7（大内存）' },
+            { family: 'c7', type: 'c7.xlarge.4', vcpu: 4, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 440, priceUSD: 64, description: '通用计算增强型C7（大内存）' },
+            { family: 'c7', type: 'c7.2xlarge.4', vcpu: 8, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 880, priceUSD: 127, description: '通用计算增强型C7（大内存）' },
+            { family: 'c7', type: 'c7.4xlarge.4', vcpu: 16, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1'], priceCNY: 1760, priceUSD: 254, description: '通用计算增强型C7（大内存）' },
+            { family: 'c6', type: 'c6.large.2', vcpu: 2, memory: 4, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 160, priceUSD: 23, description: '通用计算增强型C6' },
+            { family: 'c6', type: 'c6.xlarge.2', vcpu: 4, memory: 8, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 320, priceUSD: 46, description: '通用计算增强型C6' },
+            { family: 'c6', type: 'c6.2xlarge.2', vcpu: 8, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 640, priceUSD: 92, description: '通用计算增强型C6' },
+            { family: 'c6', type: 'c6.4xlarge.2', vcpu: 16, memory: 32, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 1280, priceUSD: 185, description: '通用计算增强型C6' },
+            { family: 'c6', type: 'c6.8xlarge.2', vcpu: 32, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 2560, priceUSD: 370, description: '通用计算增强型C6' },
+            
+            // === 通用型 S系列（通用场景） ===
+            { family: 's7', type: 's7.large.2', vcpu: 2, memory: 4, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 150, priceUSD: 22, description: '通用型S7' },
+            { family: 's7', type: 's7.xlarge.2', vcpu: 4, memory: 8, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 300, priceUSD: 43, description: '通用型S7' },
+            { family: 's7', type: 's7.2xlarge.2', vcpu: 8, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 600, priceUSD: 87, description: '通用型S7' },
+            { family: 's7', type: 's7.4xlarge.2', vcpu: 16, memory: 32, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 1200, priceUSD: 173, description: '通用型S7' },
+            { family: 's7', type: 's7.8xlarge.2', vcpu: 32, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 2400, priceUSD: 347, description: '通用型S7' },
+            { family: 's7', type: 's7.large.4', vcpu: 2, memory: 8, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 190, priceUSD: 27, description: '通用型S7（大内存）' },
+            { family: 's7', type: 's7.xlarge.4', vcpu: 4, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 380, priceUSD: 55, description: '通用型S7（大内存）' },
+            { family: 's7', type: 's7.2xlarge.4', vcpu: 8, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 760, priceUSD: 110, description: '通用型S7（大内存）' },
+            { family: 's7', type: 's7.4xlarge.4', vcpu: 16, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1'], priceCNY: 1520, priceUSD: 220, description: '通用型S7（大内存）' },
+            { family: 's6', type: 's6.large.2', vcpu: 2, memory: 4, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1', 'sa-brazil-1', 'la-mexico-1'], priceCNY: 130, priceUSD: 19, description: '通用型S6' },
+            { family: 's6', type: 's6.xlarge.2', vcpu: 4, memory: 8, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1', 'sa-brazil-1', 'la-mexico-1'], priceCNY: 260, priceUSD: 38, description: '通用型S6' },
+            { family: 's6', type: 's6.2xlarge.2', vcpu: 8, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1', 'sa-brazil-1', 'la-mexico-1'], priceCNY: 520, priceUSD: 75, description: '通用型S6' },
+            { family: 's6', type: 's6.4xlarge.2', vcpu: 16, memory: 32, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1', 'sa-brazil-1', 'la-mexico-1'], priceCNY: 1040, priceUSD: 150, description: '通用型S6' },
+            { family: 's6', type: 's6.8xlarge.2', vcpu: 32, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-southwest-1', 'cn-west-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1', 'sa-brazil-1', 'la-mexico-1'], priceCNY: 2080, priceUSD: 300, description: '通用型S6' },
+            
+            // === 内存优化型 M系列（内存密集型应用） ===
+            { family: 'm7', type: 'm7.large.4', vcpu: 2, memory: 8, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 200, priceUSD: 29, description: '内存优化型M7' },
+            { family: 'm7', type: 'm7.xlarge.4', vcpu: 4, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 400, priceUSD: 58, description: '内存优化型M7' },
+            { family: 'm7', type: 'm7.2xlarge.4', vcpu: 8, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 800, priceUSD: 116, description: '内存优化型M7' },
+            { family: 'm7', type: 'm7.4xlarge.4', vcpu: 16, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 1600, priceUSD: 231, description: '内存优化型M7' },
+            { family: 'm6', type: 'm6.large.4', vcpu: 2, memory: 8, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 180, priceUSD: 26, description: '内存优化型M6' },
+            { family: 'm6', type: 'm6.xlarge.4', vcpu: 4, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 360, priceUSD: 52, description: '内存优化型M6' },
+            { family: 'm6', type: 'm6.2xlarge.4', vcpu: 8, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 720, priceUSD: 104, description: '内存优化型M6' },
+            { family: 'm6', type: 'm6.4xlarge.4', vcpu: 16, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-south-2', 'cn-southwest-2', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2', 'na-north-1', 'na-west-1', 'af-south-1', 'ru-moscow-1'], priceCNY: 1440, priceUSD: 208, description: '内存优化型M6' },
+            
+            // === 超大内存型 E系列（内存数据库） ===
+            { family: 'e3', type: 'e3.xlarge.8', vcpu: 4, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 450, priceUSD: 65, description: '超大内存型E3' },
+            { family: 'e3', type: 'e3.2xlarge.8', vcpu: 8, memory: 64, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 900, priceUSD: 130, description: '超大内存型E3' },
+            { family: 'e3', type: 'e3.4xlarge.8', vcpu: 16, memory: 128, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 1800, priceUSD: 260, description: '超大内存型E3' },
+            { family: 'e3', type: 'e3.8xlarge.8', vcpu: 32, memory: 256, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1'], priceCNY: 3600, priceUSD: 520, description: '超大内存型E3' },
+            { family: 'e3n', type: 'e3n.xlarge.8', vcpu: 4, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2'], priceCNY: 430, priceUSD: 62, description: '超大内存型E3n' },
+            { family: 'e3n', type: 'e3n.2xlarge.8', vcpu: 8, memory: 64, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2'], priceCNY: 860, priceUSD: 124, description: '超大内存型E3n' },
+            { family: 'e3n', type: 'e3n.4xlarge.8', vcpu: 16, memory: 128, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1', 'ap-southeast-2'], priceCNY: 1720, priceUSD: 248, description: '超大内存型E3n' },
+            
+            // === GPU加速型 G系列（AI/图形） ===
+            { family: 'g6', type: 'g6.large.2', vcpu: 2, memory: 8, maxNic: 6, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 250, priceUSD: 36, description: 'GPU加速型G6' },
+            { family: 'g6', type: 'g6.xlarge.2', vcpu: 4, memory: 16, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 500, priceUSD: 72, description: 'GPU加速型G6' },
+            { family: 'g6', type: 'g6.2xlarge.2', vcpu: 8, memory: 32, maxNic: 8, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 1000, priceUSD: 144, description: 'GPU加速型G6' },
+            { family: 'g6', type: 'g6.4xlarge.2', vcpu: 16, memory: 64, maxNic: 16, isX: false, regions: ['cn-north-4', 'cn-north-1', 'cn-east-3', 'cn-south-1', 'cn-hk-1', 'ap-southeast-1'], priceCNY: 2000, priceUSD: 289, description: 'GPU加速型G6' },
+        ];
+        
+        // 华为云EVS存储价格数据
+        const huaweiEVSPrice = {
+            'cn-north-4': { '高IO': 0.35, '通用型SSD V2': 0.48, 'ultra': 0.55 },
+            'cn-north-1': { '高IO': 0.35, '通用型SSD V2': 0.48, 'ultra': 0.55 },
+            'cn-east-3': { '高IO': 0.35, '通用型SSD V2': 0.48, 'ultra': 0.55 },
+            'cn-south-1': { '高IO': 0.35, '通用型SSD V2': 0.48, 'ultra': 0.55 },
+            'default': { '高IO': 0.38, '通用型SSD V2': 0.52, 'ultra': 0.60 }
+        };
+        
+        // 华为云Region价格因子
+        const regionPriceFactor = {
+            'cn-north-4': 1.0, 'cn-north-1': 1.0, 'cn-north-9': 0.95,
+            'cn-north-2': 1.0, 'cn-east-3': 1.0, 'cn-east-2': 1.0,
+            'cn-south-1': 1.0, 'cn-south-4': 1.0, 'cn-south-2': 1.1,
+            'cn-southwest-2': 0.9, 'cn-southwest-1': 0.9, 'cn-west-2': 0.9,
+            'cn-hk-1': 1.3, 'ap-southeast-1': 1.2, 'ap-southeast-2': 1.15,
+            'na-north-1': 1.5, 'na-west-1': 1.5, 'default': 1.2
+        };
+        
+        // 全局数据
+        let vmData = [];
+        let charts = {};
+        let rawData = null;
+        
+        // 页面加载完成后初始化
+        window.onload = function() {
+            console.log('✅ 页面加载完成');
+            console.log('XLSX库:', typeof XLSX !== 'undefined' ? '✅ 已加载' : '❌ 未加载');
+            console.log('Chart.js:', typeof Chart !== 'undefined' ? '✅ 已加载' : '❌ 未加载');
+            initApp();
+        };
+        
+        // 辅助函数：不区分大小写查找字段
+        function getField(obj, possibleNames) {
+            for (let name of possibleNames) {
+                for (let key in obj) {
+                    if (key.toLowerCase() === name.toLowerCase()) {
+                        return obj[key];
+                    }
+                }
+            }
+            return '';
+        }
+        
+        // 辅助函数：判断操作系统类型
+        function getOSType(osName) {
+            if (!osName) return 'Others';
+            
+            const osLower = osName.toLowerCase();
+            
+            // Windows相关关键词
+            const windowsKeywords = ['windows', 'win', 'microsoft', 'win2k', 'win2003', 'win2008', 'win2012', 'win2016', 'win2019', 'win2022', 'win7', 'win8', 'win10', 'win11', 'vista', 'xp'];
+            for (let keyword of windowsKeywords) {
+                if (osLower.includes(keyword)) {
+                    return 'Windows';
+                }
+            }
+            
+            // Linux相关关键词
+            const linuxKeywords = ['linux', 'ubuntu', 'centos', 'red hat', 'rhel', 'debian', 'fedora', 'suse', 'opensuse', 'oracle linux', 'rocky', 'alma', 'amazon linux', 'kali', 'gentoo', 'arch', 'mint'];
+            for (let keyword of linuxKeywords) {
+                if (osLower.includes(keyword)) {
+                    return 'Linux';
+                }
+            }
+            
+            return 'Others';
+        }
+        
+        // 获取选中的Region
+        function getSelectedRegion() {
+            return document.getElementById('regionSelect').value;
+        }
+        
+        // 获取选中的货币
+        function getSelectedCurrency() {
+            return document.getElementById('currencySelect').value;
+        }
+        
+        // 数据库VM识别函数
+        function isDatabaseVM(row) {
+            const dbValue = getField(row, ['DB', 'IsDB', 'Is Database', 'Database', 'Database VM', 'DB VM']);
+            
+            if (dbValue !== '') {
+                const dbStr = String(dbValue).toLowerCase().trim();
+                
+                if (dbStr === 'yes' || dbStr === 'true' || dbStr === '1' || dbStr === 'y') {
+                    return { isDB: true, reason: 'DB列标识为"是"' };
+                } else {
+                    return { isDB: false, reason: '' };
+                }
+            }
+            
+            return { isDB: false, reason: '' };
+        }
+        
+        // 匹配华为云ECS实例（严格按照优先级规则）
+        function matchECSInstance(cpu, memoryMB, nicCount, isDB, cpuUsage) {
+            const memoryGB = memoryMB / 1024;
+            const sourceRatio = memoryGB / cpu;
+            const region = getSelectedRegion();
+            const currency = getSelectedCurrency();
+            
+            // 获取偏好的规格系列
+            const preferredFamily = getPreferredFamily(sourceRatio, isDB);
+            
+            // 第一步：先按照Region筛选可用实例
+            let availableInstances = huaweiECSInstances.filter(instance => {
+                if (!instance.regions || instance.regions.length === 0) {
+                    return true; // 如果没有指定regions，默认可用
+                }
+                return instance.regions.includes(region);
+            });
+            
+            if (availableInstances.length === 0) {
+                availableInstances = huaweiECSInstances; // 回退到所有实例
+            }
+            
+            // 第二步：在可用实例中寻找vCPU一致的
+            let exactVcpus = availableInstances.filter(instance => instance.vcpu === cpu);
+            
+            if (exactVcpus.length > 0) {
+                exactVcpus = sortByRatioAndPrice(exactVcpus, sourceRatio, region, currency);
+                // 优先偏好系列
+                const preferred = exactVcpus.filter(instance => (instance.family || '').toLowerCase().startsWith(preferredFamily));
+                if (preferred.length > 0) {
+                    return preferred[0];
+                }
+                return exactVcpus[0];
+            }
+            
+            // 第三步：无vCPU一致时，根据CPU使用率
+            let candidates = [];
+            if (cpuUsage < 30) {
+                candidates = availableInstances.filter(instance => {
+                    return instance.vcpu < cpu && instance.vcpu >= Math.max(1, cpu - 2);
+                });
+            }
+            
+            if (candidates.length === 0) {
+                candidates = availableInstances.filter(instance => {
+                    return instance.vcpu > cpu && instance.vcpu <= cpu + 4;
+                });
+            }
+            
+            if (candidates.length === 0) {
+                // 扩大范围
+                candidates = availableInstances;
+            }
+            
+            if (candidates.length > 0) {
+                candidates = sortByRatioAndPrice(candidates, sourceRatio, region, currency);
+                candidates.sort((a, b) => {
+                    const diffA = Math.abs(a.vcpu - cpu);
+                    const diffB = Math.abs(b.vcpu - cpu);
+                    return diffA - diffB;
+                });
+                
+                const minDiff = Math.abs(candidates[0].vcpu - cpu);
+                const minDiffCandidates = candidates.filter(instance => Math.abs(instance.vcpu - cpu) === minDiff);
+                
+                const preferred = minDiffCandidates.filter(instance => (instance.family || '').toLowerCase().startsWith(preferredFamily));
+                
+                if (preferred.length > 0) {
+                    return preferred[0];
+                }
+                return minDiffCandidates[0];
+            }
+            
+            return sortByRatioAndPrice(availableInstances, sourceRatio, region, currency)[0] || availableInstances[0] || huaweiECSInstances[0];
+        }
+        
+        // 辅助函数：获取偏好的规格系列
+        function getPreferredFamily(sourceRatio, isDB) {
+            if (sourceRatio > 8) {
+                return 'e';
+            }
+            if (isDB) {
+                return 'c';
+            }
+            return 'x';
+        }
+        
+        // 辅助函数：按照CPU内存比和价格排序
+        function sortByRatioAndPrice(candidates, sourceRatio, region, currency) {
+            return candidates.sort((a, b) => {
+                // 优先级3：CPU内存比匹配，优选>=源端CPU内存比的规格
+                const ratioA = a.memory / a.vcpu;
+                const ratioB = b.memory / b.vcpu;
+                
+                const ratioAOver = ratioA >= sourceRatio;
+                const ratioBOver = ratioB >= sourceRatio;
+                
+                if (ratioAOver !== ratioBOver) {
+                    return ratioAOver ? -1 : 1; // 优先选择 >= 源端的
+                }
+                
+                // 在都满足或都不满足的情况下，选择比例最接近的
+                const diffA = Math.abs(ratioA - sourceRatio);
+                const diffB = Math.abs(ratioB - sourceRatio);
+                
+                if (diffA !== diffB) {
+                    return diffA - diffB; // 比例差异小的排前面
+                }
+                
+                // 优先级7：价格最优，选择价格最低的规格
+                const priceA = getInstancePrice(a, region, currency);
+                const priceB = getInstancePrice(b, region, currency);
+                
+                return priceA - priceB;
+            });
+        }
+        
+        // 辅助函数：获取实例价格
+        function getInstancePrice(instance, region, currency) {
+            const factor = regionPriceFactor[region] || regionPriceFactor['default'];
+            return currency === 'CNY' ? instance.priceCNY * factor : instance.priceUSD * factor;
+        }
+        
+        // 获取存储类型
+        function getStorageType(isDB) {
+            return isDB ? '通用型SSD V2' : '高IO';
+        }
+        
+        // 获取EVS存储价格
+        function getEVSPrice(region, diskType) {
+            const evsPrices = huaweiEVSPrice[region] || huaweiEVSPrice['default'];
+            return evsPrices[diskType] || evsPrices['高IO'];
+        }
+        
+        // 计算月度费用
+        function calculateMonthlyCost(ecsInstance, storageGB, diskType, region) {
+            const factor = regionPriceFactor[region] || regionPriceFactor['default'];
+            const currency = getSelectedCurrency();
+            
+            const ecsPrice = currency === 'CNY' ? ecsInstance.priceCNY * factor : ecsInstance.priceUSD * factor;
+            const storagePrice = getEVSPrice(region, diskType) * storageGB * factor;
+            
+            return ecsPrice + storagePrice;
+        }
+        
+        function calculateYearlyCost(monthlyCost, years) {
+            if (years === 1) {
+                return monthlyCost * 12 * 0.85;
+            } else if (years === 3) {
+                return monthlyCost * 12 * 0.65;
+            }
+            return monthlyCost * 12;
+        }
+        
+        // 分类VM
+        function categorizeVM(cpu, memoryGB, isDB) {
+            if (isDB) return '数据库';
+            if (cpu >= 16) return '大型应用';
+            if (cpu >= 8) return '中型应用';
+            if (cpu >= 4) return '小型应用';
+            return '轻量级应用';
+        }
+        
+        function initApp() {
+            console.log('🔧 初始化应用...');
+            
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('uploadArea');
+            
+            if (!fileInput) {
+                console.error('❌ 找不到fileInput元素');
+                return;
+            }
+            
+            console.log('✅ fileInput元素已找到');
+            
+            // 设置onchange事件
+            fileInput.onchange = function(e) {
+                console.log('='.repeat(60));
+                console.log('📁 文件选择事件触发！');
+                
+                const files = e.target.files;
+                console.log('文件数量:', files ? files.length : 0);
+                
+                if (!files || files.length === 0) {
+                    console.log('⚠️ 没有选择文件');
+                    return;
+                }
+                
+                const file = files[0];
+                console.log('文件名:', file.name);
+                console.log('文件大小:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+                console.log('选中的Region:', getSelectedRegion());
+                console.log('选中的货币:', getSelectedCurrency());
+                
+                // 显示文件信息
+                document.getElementById('fileInfo').textContent = '已选择文件: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                document.getElementById('fileInfo').classList.add('show');
+                
+                // 验证文件
+                if (!file.name.toLowerCase().endsWith('.xlsx') && !file.name.toLowerCase().endsWith('.xls')) {
+                    showError('❌ 请上传Excel文件 (.xlsx 或 .xls)');
+                    return;
+                }
+                
+                console.log('✅ 文件验证通过，开始解析...');
+                processFile(file);
+            };
+            
+            // 拖拽事件
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.classList.remove('dragover');
+                
+                console.log('📥 文件拖放事件');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    
+                    document.getElementById('fileInfo').textContent = '已选择文件: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                    document.getElementById('fileInfo').classList.add('show');
+                    
+                    processFile(file);
+                }
+            });
+            
+            console.log('✅ 应用初始化完成');
+        }
+        
+        function showError(msg) {
+            console.error('❌', msg);
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = msg;
+            errorDiv.classList.add('show');
+        }
+        
+        function processFile(file) {
+            console.log('🔄 processFile 开始');
+            
+            // 显示加载
+            document.getElementById('uploadArea').style.display = 'none';
+            document.getElementById('optionsContainer').style.display = 'none';
+            document.getElementById('loading').classList.add('show');
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                console.log('✅ 文件读取完成');
+                
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    console.log('工作表列表:', workbook.SheetNames);
+                    
+                    // 查找Vinfo表
+                    let vinfoSheetName = null;
+                    for (let i = 0; i < workbook.SheetNames.length; i++) {
+                        const name = workbook.SheetNames[i];
+                        if (name.toLowerCase().includes('vinfo')) {
+                            vinfoSheetName = name;
+                            break;
+                        }
+                    }
+                    
+                    if (!vinfoSheetName) {
+                        console.warn('⚠️ 未找到Vinfo表，使用第一个工作表');
+                        vinfoSheetName = workbook.SheetNames[0];
+                    }
+                    
+                    console.log('使用工作表:', vinfoSheetName);
+                    
+                    // 解析数据
+                    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[vinfoSheetName]);
+                    console.log('数据行数:', sheetData.length);
+                    
+                    rawData = sheetData;
+                    
+                    if (sheetData.length === 0) {
+                        showError('❌ Excel文件中没有找到数据');
+                        document.getElementById('loading').classList.remove('show');
+                        document.getElementById('uploadArea').style.display = 'block';
+                        document.getElementById('optionsContainer').style.display = 'grid';
+                        return;
+                    }
+                    
+                    // 处理数据
+                    const region = getSelectedRegion();
+                    processData(sheetData, region);
+                    
+                } catch (error) {
+                    console.error('❌ 解析错误:', error);
+                    showError('❌ Excel解析失败: ' + error.message);
+                    document.getElementById('loading').classList.remove('show');
+                    document.getElementById('uploadArea').style.display = 'block';
+                    document.getElementById('optionsContainer').style.display = 'grid';
+                }
+            };
+            
+            reader.onerror = function() {
+                console.error('❌ 文件读取错误');
+                showError('❌ 文件读取失败');
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('uploadArea').style.display = 'block';
+                document.getElementById('optionsContainer').style.display = 'grid';
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function processData(data, region) {
+            console.log('📊 处理数据...');
+            console.log('选定的Region:', region);
+            vmData = data;
+            
+            let totalVMs = 0;
+            let totalVCPUs = 0;
+            let totalMemory = 0;
+            let totalStorageProvisioned = 0;
+            let osDistribution = {};
+            let osTypeDistribution = { 'Windows': 0, 'Linux': 0, 'Others': 0 };
+            
+            let cpuReadyDistribution = {
+                '正常 (<5%)': 0,
+                '轻微竞争 (5-10%)': 0,
+                '明显压力 (>10%)': 0,
+                '严重瓶颈 (>20%)': 0
+            };
+            
+            let memoryUtilizationDistribution = {
+                '严重浪费 (<30%)': 0,
+                '合理 (30-80%)': 0,
+                '可能偏紧 (>80%)': 0
+            };
+            
+            let storageUtilizationDistribution = {
+                '严重浪费 (<30%)': 0,
+                '正常 (30-80%)': 0,
+                '偏满 (>80%)': 0
+            };
+            
+            let validCPURecordCount = 0;
+            let validMemoryRecordCount = 0;
+            let validStorageRecordCount = 0;
+            
+            data.forEach(function(row, index) {
+                totalVMs++;
+                
+                const vcpu = parseInt(
+                    getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0
+                );
+                totalVCPUs += vcpu;
+                
+                const memory = parseInt(
+                    getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0
+                );
+                totalMemory += memory;
+                
+                const storageProvisioned = parseFloat(
+                    getField(row, [
+                        'Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 
+                        'Total Provisioned Space (MiB)', 'Disk.Provisioned',
+                        'Hard disk', 'Hard disk (MiB)', 'Capacity',
+                        'Capacity MiB'
+                    ]) || 0
+                );
+                totalStorageProvisioned += storageProvisioned;
+                
+                const os = getField(row, ['OS', 'Guest OS', 'Operating System', 'OS According to the VMware Tools', 'GuestOS', 'Guest']) || 'Unknown';
+                
+                if (!osDistribution[os]) osDistribution[os] = 0;
+                osDistribution[os]++;
+                
+                const osType = getOSType(os);
+                osTypeDistribution[osType]++;
+                
+                const cpuReady = parseFloat(
+                    getField(row, ['CPU Ready', 'Overall CPU Readiness', 'CPU Ready (%)']) || -1
+                );
+                
+                if (cpuReady >= 0) {
+                    validCPURecordCount++;
+                    if (cpuReady < 5) {
+                        cpuReadyDistribution['正常 (<5%)']++;
+                    } else if (cpuReady < 10) {
+                        cpuReadyDistribution['轻微竞争 (5-10%)']++;
+                    } else if (cpuReady < 20) {
+                        cpuReadyDistribution['明显压力 (>10%)']++;
+                    } else {
+                        cpuReadyDistribution['严重瓶颈 (>20%)']++;
+                    }
+                }
+                
+                const activeMemory = parseFloat(
+                    getField(row, ['Active', 'Active Memory', 'Active Memory (MB)']) || 0
+                );
+                
+                if (memory > 0 && activeMemory > 0) {
+                    validMemoryRecordCount++;
+                    const memUtilization = (activeMemory / memory) * 100;
+                    
+                    if (memUtilization < 30) {
+                        memoryUtilizationDistribution['严重浪费 (<30%)']++;
+                    } else if (memUtilization <= 80) {
+                        memoryUtilizationDistribution['合理 (30-80%)']++;
+                    } else {
+                        memoryUtilizationDistribution['可能偏紧 (>80%)']++;
+                    }
+                }
+                
+                const storageInUse = parseFloat(
+                    getField(row, ['In Use', 'In Use MiB', 'In Use (MiB)']) || 0
+                );
+                
+                if (storageProvisioned > 0 && storageInUse > 0) {
+                    validStorageRecordCount++;
+                    const storageUtilization = (storageInUse / storageProvisioned) * 100;
+                    
+                    if (storageUtilization < 30) {
+                        storageUtilizationDistribution['严重浪费 (<30%)']++;
+                    } else if (storageUtilization <= 80) {
+                        storageUtilizationDistribution['正常 (30-80%)']++;
+                    } else {
+                        storageUtilizationDistribution['偏满 (>80%)']++;
+                    }
+                }
+            });
+            
+            document.getElementById('totalVMs').textContent = totalVMs;
+            document.getElementById('totalVCPUs').textContent = totalVCPUs;
+            document.getElementById('totalMemory').textContent = (totalMemory / 1024).toFixed(1) + ' GB';
+            const storageTB = totalStorageProvisioned / 1024 / 1024;
+            document.getElementById('totalStorage').textContent = storageTB.toFixed(2) + ' TB';
+            
+            document.getElementById('windowsCount').textContent = osTypeDistribution['Windows'];
+            document.getElementById('linuxCount').textContent = osTypeDistribution['Linux'];
+            document.getElementById('othersCount').textContent = osTypeDistribution['Others'];
+            
+            const windowsPercent = totalVMs > 0 ? ((osTypeDistribution['Windows'] / totalVMs) * 100).toFixed(1) : 0;
+            const linuxPercent = totalVMs > 0 ? ((osTypeDistribution['Linux'] / totalVMs) * 100).toFixed(1) : 0;
+            const othersPercent = totalVMs > 0 ? ((osTypeDistribution['Others'] / totalVMs) * 100).toFixed(1) : 0;
+            
+            document.getElementById('windowsPercent').textContent = windowsPercent + '%';
+            document.getElementById('linuxPercent').textContent = linuxPercent + '%';
+            document.getElementById('othersPercent').textContent = othersPercent + '%';
+            
+            document.getElementById('loading').classList.remove('show');
+            document.getElementById('analysisResults').classList.remove('hidden');
+            
+            renderOSTypeCharts(osTypeDistribution, totalVMs);
+            renderOSTypeTable(osTypeDistribution, totalVMs);
+            renderOSChart(osDistribution);
+            renderOSVersionTable(osDistribution, totalVMs);
+            
+            document.getElementById('cpuNormalCount').textContent = cpuReadyDistribution['正常 (<5%)'];
+            document.getElementById('cpuLightCount').textContent = cpuReadyDistribution['轻微竞争 (5-10%)'];
+            document.getElementById('cpuPressureCount').textContent = cpuReadyDistribution['明显压力 (>10%)'];
+            document.getElementById('cpuBottleneckCount').textContent = cpuReadyDistribution['严重瓶颈 (>20%)'];
+            
+            const physicalCores = Math.ceil(totalVCPUs / 8);
+            const oversubscriptionRatio = physicalCores > 0 ? (totalVCPUs / physicalCores).toFixed(2) : 0;
+            
+            document.getElementById('totalVCPUsDisplay').textContent = totalVCPUs;
+            document.getElementById('physicalCoresDisplay').textContent = physicalCores;
+            document.getElementById('oversubscriptionRatio').textContent = oversubscriptionRatio + ':1';
+            
+            document.getElementById('memWasteCount').textContent = memoryUtilizationDistribution['严重浪费 (<30%)'];
+            document.getElementById('memNormalCount').textContent = memoryUtilizationDistribution['合理 (30-80%)'];
+            document.getElementById('memTightCount').textContent = memoryUtilizationDistribution['可能偏紧 (>80%)'];
+            
+            document.getElementById('storageWasteCount').textContent = storageUtilizationDistribution['严重浪费 (<30%)'];
+            document.getElementById('storageNormalCount').textContent = storageUtilizationDistribution['正常 (30-80%)'];
+            document.getElementById('storageFullCount').textContent = storageUtilizationDistribution['偏满 (>80%)'];
+            
+            renderCPUCharts(cpuReadyDistribution, validCPURecordCount);
+            renderMemoryCharts(memoryUtilizationDistribution, validMemoryRecordCount);
+            renderStorageCharts(storageUtilizationDistribution, validStorageRecordCount);
+            
+            renderCPUTable(cpuReadyDistribution, validCPURecordCount);
+            renderMemoryTable(memoryUtilizationDistribution, validMemoryRecordCount);
+            renderStorageTable(storageUtilizationDistribution, validStorageRecordCount);
+            
+            renderHuaweiMapping(data, region);
+            renderSummaryComparison(data, region);
+            
+            console.log('✅ 分析完成！');
+            console.log('操作系统类型统计:', osTypeDistribution);
+            console.log('CPU利用率分布:', cpuReadyDistribution);
+            console.log('内存利用率分布:', memoryUtilizationDistribution);
+            console.log('存储利用率分布:', storageUtilizationDistribution);
+            console.log('CPU超分比:', oversubscriptionRatio + ':1');
+        }
+        
+        // 渲染华为云虚机映射
+        function renderHuaweiMapping(data, region) {
+            const tbody = document.getElementById('huaweiMappingTableBody');
+            tbody.innerHTML = '';
+            
+            let totalMappedVM = 0;
+            let totalMappedVcpu = 0;
+            let totalMappedMemory = 0;
+            let totalMonthlyCost = 0;
+            
+            data.forEach(row => {
+                const name = getField(row, ['VM Name', 'Name', 'VM', 'Virtual Machine', 'VirtualMachineName']) || '';
+                const os = getField(row, ['OS', 'Guest OS', 'Operating System', 'OS According to the VMware Tools', 'GuestOS', 'Guest']) || 'Unknown';
+                const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                const memoryMB = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                const memoryGB = memoryMB / 1024;
+                const cpuUsage = parseFloat(getField(row, [
+                    'Overall CPU Readiness', 'CPU Ready', 'CPU Ready (%)',
+                    'CPU Usage', 'CPU Usage (%)', 'CPU%', 'Usage',
+                    'CPU Usage Average', 'CPU Usage Peak', 'CPU Active',
+                    'CPU Utilization', 'Overall CPU Usage',
+                    'Host CPU Usage', 'Guest CPU Usage', 'VM CPU Usage',
+                    'Used CPU', 'Active CPU', 'CPU Used',
+                    'Percent CPU', 'CPU Percent', 'CPU Load', 'Load'
+                ]) || 0);
+                const activeMemory = parseFloat(getField(row, ['Active', 'Active Memory', 'Active Memory (MB)']) || 0);
+                const activeMemoryGB = activeMemory / 1024;
+                const provisionedMB = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                const provisionedGB = provisionedMB / 1024;
+                const inUseMB = parseFloat(getField(row, ['In Use', 'In Use MiB', 'In Use (MB)']) || 0);
+                const inUseGB = inUseMB / 1024;
+                const cpuMemoryRatio = vcpu > 0 ? (memoryGB / vcpu).toFixed(2) : 0;
+                const memUtilization = memoryMB > 0 && activeMemory > 0 ? ((activeMemory / memoryMB) * 100).toFixed(2) : 0;
+                const storageUtilization = provisionedMB > 0 && inUseMB > 0 ? ((inUseMB / provisionedMB) * 100).toFixed(2) : 0;
+                
+                const dbResult = isDatabaseVM(row);
+                const isDB = dbResult.isDB;
+                const dbReason = dbResult.reason;
+                const category = categorizeVM(vcpu, memoryGB, isDB);
+                
+                const nicCount = parseInt(getField(row, ['NIC', 'Network Adapters', 'Network', 'Num NIC']) || 1);
+                const matchedECS = matchECSInstance(vcpu, memoryMB, nicCount, isDB, cpuUsage);
+                const diskType = getStorageType(isDB);
+                
+                const diskGB = Math.ceil(provisionedGB);
+                const monthlyCost = calculateMonthlyCost(matchedECS, diskGB, diskType, region);
+                const yearlyCost1Year = calculateYearlyCost(monthlyCost, 1);
+                const yearlyCost3Year = calculateYearlyCost(monthlyCost, 3);
+                
+                totalMappedVM++;
+                totalMappedVcpu += matchedECS.vcpu;
+                totalMappedMemory += matchedECS.memory;
+                totalMonthlyCost += monthlyCost;
+                
+                const memoryGiB = matchedECS.memory;
+                const ecsCpuMemoryRatio = matchedECS.memory / matchedECS.vcpu;
+                
+                const vcpuDiff = matchedECS.vcpu - vcpu;
+                let vcpuCompare = '等于';
+                if (vcpuDiff > 0) {
+                    vcpuCompare = vcpuDiff <= 2 ? '略高' : '较高';
+                } else if (vcpuDiff < 0) {
+                    vcpuCompare = vcpuDiff >= -2 ? '略低' : '较低';
+                }
+                
+                const ratioDiff = ecsCpuMemoryRatio - parseFloat(cpuMemoryRatio);
+                const ratioDiffPercent = parseFloat(cpuMemoryRatio) > 0 ? ((ratioDiff / parseFloat(cpuMemoryRatio)) * 100).toFixed(1) : 0;
+                const ratioDiffDisplay = ratioDiff >= 0 ? `+${ratioDiffPercent}%` : `${ratioDiffPercent}%`;
+                
+                const currency = getSelectedCurrency();
+                const currencySymbol = currency === 'CNY' ? '¥' : '$';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align: left; font-weight: 500;">${name}</td>
+                    <td style="text-align: left;">${os}</td>
+                    <td>${vcpu}</td>
+                    <td>${memoryGB.toFixed(2)}</td>
+                    <td>${cpuUsage.toFixed(2)}</td>
+                    <td>${activeMemoryGB.toFixed(2)}</td>
+                    <td>${provisionedGB.toFixed(2)}</td>
+                    <td>${inUseGB.toFixed(2)}</td>
+                    <td style="color: ${isDB ? '#F5222D' : '#52C41A'}; font-weight: 600;">${isDB ? '是' : '否'}</td>
+                    <td>${cpuMemoryRatio}</td>
+                    <td style="color: ${memUtilization < 30 ? '#FAAD14' : (memUtilization > 80 ? '#F5222D' : '#52C41A')};">${memUtilization}</td>
+                    <td style="color: ${storageUtilization < 30 ? '#FAAD14' : (storageUtilization > 80 ? '#F5222D' : '#52C41A')};">${storageUtilization}</td>
+                    <td><span style="padding: 4px 8px; border-radius: 4px; background: ${isDB ? '#FFF2F0' : '#F6FFED'}; color: ${isDB ? '#F5222D' : '#52C41A'}; font-weight: 500;">${category}</span></td>
+                    <td style="font-weight: 600;">${matchedECS.family}</td>
+                    <td style="font-weight: 500; color: #1890FF;">${matchedECS.type}</td>
+                    <td>${matchedECS.vcpu}</td>
+                    <td>${memoryGiB}</td>
+                    <td>${ecsCpuMemoryRatio.toFixed(2)}</td>
+                    <td style="color: ${vcpuCompare === '等于' ? '#52C41A' : (vcpuCompare.includes('高') ? '#FAAD14' : '#1890FF')}; font-weight: 600;">${vcpuCompare}</td>
+                    <td style="color: ${ratioDiff >= 0 ? '#52C41A' : '#F5222D'};">${ratioDiffDisplay}</td>
+                    <td style="text-align: left; font-size: 12px; color: ${isDB ? '#F5222D' : '#8C8C8C'};">${dbReason}</td>
+                    <td>${diskGB}</td>
+                    <td style="color: ${diskType === '通用型SSD V2' ? '#722ED1' : '#1890FF'};">${diskType}</td>
+                    <td style="font-weight: 600; color: #F5222D;">${currencySymbol}${monthlyCost.toFixed(2)}</td>
+                    <td style="font-weight: 600; color: #F5222D;">${currencySymbol}${yearlyCost1Year.toFixed(2)}</td>
+                    <td style="font-weight: 600; color: #F5222D;">${currencySymbol}${yearlyCost3Year.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            const currency = getSelectedCurrency();
+            const currencySymbol = currency === 'CNY' ? '¥' : '$';
+            
+            document.getElementById('mappedVMCount').textContent = totalMappedVM;
+            document.getElementById('mappedVcpu').textContent = totalMappedVcpu;
+            document.getElementById('mappedMemory').textContent = totalMappedMemory + ' GB';
+            document.getElementById('monthlyCost').textContent = currencySymbol + totalMonthlyCost.toFixed(2);
+        }
+        
+        // 渲染汇总对比
+        function renderSummaryComparison(data, region) {
+            let totalVMs = 0;
+            let totalVCPUs = 0;
+            let totalMemory = 0;
+            let totalStorageProvisioned = 0;
+            
+            let mappedVMs = 0;
+            let mappedVCPUs = 0;
+            let mappedMemory = 0;
+            let mappedStorage = 0;
+            let totalMonthlyCost = 0;
+            
+            data.forEach(row => {
+                totalVMs++;
+                
+                const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                totalVCPUs += vcpu;
+                
+                const memoryMB = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                totalMemory += memoryMB;
+                
+                const storageProvisioned = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                totalStorageProvisioned += storageProvisioned;
+                
+                const os = getField(row, ['OS', 'Guest OS', 'Operating System', 'OS According to the VMware Tools', 'GuestOS', 'Guest']) || 'Unknown';
+                const nicCount = parseInt(getField(row, ['NIC', 'Network Adapters', 'Network', 'Num NIC']) || 1);
+                const cpuUsage = parseFloat(getField(row, [
+                    'Overall CPU Readiness', 'CPU Ready', 'CPU Ready (%)',
+                    'CPU Usage', 'CPU Usage (%)', 'CPU%', 'Usage',
+                    'CPU Usage Average', 'CPU Usage Peak', 'CPU Active',
+                    'CPU Utilization', 'Overall CPU Usage',
+                    'Host CPU Usage', 'Guest CPU Usage', 'VM CPU Usage',
+                    'Used CPU', 'Active CPU', 'CPU Used',
+                    'Percent CPU', 'CPU Percent', 'CPU Load', 'Load'
+                ]) || 0);
+                const memoryGB = memoryMB / 1024;
+                const storageGB = storageProvisioned / 1024;
+                
+                const dbResult = isDatabaseVM(row);
+                const isDB = dbResult.isDB;
+                const matchedECS = matchECSInstance(vcpu, memoryMB, nicCount, isDB, cpuUsage);
+                const diskType = getStorageType(isDB);
+                const diskGB = Math.ceil(storageGB);
+                
+                mappedVMs++;
+                mappedVCPUs += matchedECS.vcpu;
+                mappedMemory += matchedECS.memory;
+                mappedStorage += diskGB;
+                totalMonthlyCost += calculateMonthlyCost(matchedECS, diskGB, diskType, region);
+            });
+            
+            const totalMemoryGB = totalMemory / 1024;
+            const totalStorageTB = totalStorageProvisioned / 1024 / 1024;
+            const mappedStorageTB = mappedStorage / 1024;
+            const yearlyCost1Year = calculateYearlyCost(totalMonthlyCost, 1);
+            const yearlyCost3Year = calculateYearlyCost(totalMonthlyCost, 3);
+            
+            const currency = getSelectedCurrency();
+            const currencySymbol = currency === 'CNY' ? '¥' : '$';
+            
+            document.getElementById('summaryVMwareTotal').textContent = totalVMs;
+            document.getElementById('summaryVcpuTotal').textContent = totalVCPUs;
+            document.getElementById('summaryMemoryTotal').textContent = totalMemoryGB.toFixed(1) + ' GB';
+            document.getElementById('summaryStorageTotal').textContent = totalStorageTB.toFixed(2) + ' TB';
+            
+            document.getElementById('summaryHuaweiVM').textContent = mappedVMs;
+            document.getElementById('summaryHuaweiVcpu').textContent = mappedVCPUs;
+            document.getElementById('summaryHuaweiMemory').textContent = mappedMemory + ' GB';
+            document.getElementById('summaryHuaweiStorage').textContent = mappedStorageTB.toFixed(2) + ' TB';
+            document.getElementById('summaryHuaweiMonthly').textContent = currencySymbol + totalMonthlyCost.toFixed(2);
+            document.getElementById('summaryHuaweiYearly').textContent = currencySymbol + yearlyCost1Year.toFixed(2);
+            
+            const tbody = document.getElementById('summaryComparisonTableBody');
+            tbody.innerHTML = '';
+            
+            const comparisons = [
+                {
+                    type: '虚拟机数量',
+                    vmware: totalVMs,
+                    huawei: mappedVMs,
+                    diff: mappedVMs - totalVMs,
+                    note: '1:1映射，数量相同'
+                },
+                {
+                    type: 'vCPU总量',
+                    vmware: totalVCPUs,
+                    huawei: mappedVCPUs,
+                    diff: mappedVCPUs - totalVCPUs,
+                    note: mappedVCPUs >= totalVCPUs ? '华为云满足或超过源端' : '可能需要优化规格'
+                },
+                {
+                    type: '内存总量',
+                    vmware: totalMemoryGB.toFixed(1) + ' GB',
+                    huawei: mappedMemory + ' GB',
+                    diff: (mappedMemory - totalMemoryGB).toFixed(1) + ' GB',
+                    note: mappedMemory >= totalMemoryGB ? '华为云满足或超过源端' : '可能需要优化规格'
+                },
+                {
+                    type: '存储总量',
+                    vmware: totalStorageTB.toFixed(2) + ' TB',
+                    huawei: mappedStorageTB.toFixed(2) + ' TB',
+                    diff: (mappedStorageTB - totalStorageTB).toFixed(2) + ' TB',
+                    note: '存储按实际使用量映射'
+                },
+                {
+                    type: '月度费用',
+                    vmware: 'N/A',
+                    huawei: currencySymbol + totalMonthlyCost.toFixed(2),
+                    diff: 'N/A',
+                    note: '基于选定的Region和货币类型'
+                },
+                {
+                    type: '年度费用(1年)',
+                    vmware: 'N/A',
+                    huawei: currencySymbol + yearlyCost1Year.toFixed(2),
+                    diff: 'N/A',
+                    note: '月度费用×12×0.85 (85折)'
+                },
+                {
+                    type: '年度费用(3年)',
+                    vmware: 'N/A',
+                    huawei: currencySymbol + yearlyCost3Year.toFixed(2),
+                    diff: 'N/A',
+                    note: '月度费用×12×0.65 (65折)'
+                }
+            ];
+            
+            comparisons.forEach(item => {
+                const tr = document.createElement('tr');
+                let diffColor = '#52C41A';
+                if (typeof item.diff === 'number') {
+                    if (item.diff > 0) diffColor = '#FAAD14';
+                    if (item.diff < 0) diffColor = '#F5222D';
+                }
+                
+                tr.innerHTML = `
+                    <td style="font-weight: 600;">${item.type}</td>
+                    <td>${item.vmware}</td>
+                    <td style="font-weight: 600; color: #1890FF;">${item.huawei}</td>
+                    <td style="color: ${diffColor}; font-weight: 600;">${item.diff}</td>
+                    <td style="text-align: left; color: #8C8C8C;">${item.note}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        function renderOSTypeCharts(distribution, total) {
+            // 销毁旧图表
+            if (charts.osTypePieChart) charts.osTypePieChart.destroy();
+            if (charts.osTypeBarChart) charts.osTypeBarChart.destroy();
+            
+            const labels = ['Windows', 'Linux', 'Others'];
+            const values = [distribution['Windows'], distribution['Linux'], distribution['Others']];
+            const colors = ['#1890FF', '#52C41A', '#FAAD14'];
+            
+            // 饼图
+            const pieCtx = document.getElementById('osTypePieChart').getContext('2d');
+            charts.osTypePieChart = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: '操作系统类型分布',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+            
+            // 柱状图
+            const barCtx = document.getElementById('osTypeBarChart').getContext('2d');
+            charts.osTypeBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'VM数量',
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: '操作系统类型对比',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderOSTypeTable(distribution, total) {
+            const tbody = document.getElementById('osTypeTableBody');
+            tbody.innerHTML = '';
+            
+            const types = [
+                { name: 'Windows', count: distribution['Windows'] },
+                { name: 'Linux', count: distribution['Linux'] },
+                { name: 'Others', count: distribution['Others'] }
+            ];
+            
+            types.forEach(item => {
+                const percent = total > 0 ? ((item.count / total) * 100).toFixed(2) : 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.count}</td>
+                    <td>${percent}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // 合计行
+            const totalTr = document.createElement('tr');
+            totalTr.style.fontWeight = 'bold';
+            totalTr.style.background = '#f0f2f5';
+            totalTr.innerHTML = `
+                <td>合计</td>
+                <td>${total}</td>
+                <td>100%</td>
+            `;
+            tbody.appendChild(totalTr);
+        }
+        
+        function renderOSChart(distribution) {
+            // 销毁旧图表
+            if (charts.osChart) charts.osChart.destroy();
+            
+            const ctx = document.getElementById('osChart').getContext('2d');
+            
+            const topOSes = Object.entries(distribution)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            const labels = topOSes.map(item => item[0]);
+            const values = topOSes.map(item => item[1]);
+            const colors = [
+                '#1890FF', '#52C41A', '#FAAD14', '#F5222D', '#722ED1',
+                '#13C2C2', '#EB2F96', '#FA8C16', '#5CDBD3', '#85A5FF'
+            ];
+            
+            charts.osChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        },
+                        title: {
+                            display: true,
+                            text: 'TOP 10 操作系统版本',
+                            font: { size: 16, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderOSVersionTable(distribution, total) {
+            const tbody = document.getElementById('osVersionTableBody');
+            tbody.innerHTML = '';
+            
+            const sortedOS = Object.entries(distribution)
+                .sort((a, b) => b[1] - a[1]);
+            
+            sortedOS.forEach((item, index) => {
+                const [osName, count] = item;
+                const percent = total > 0 ? ((count / total) * 100).toFixed(2) : 0;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${osName}</td>
+                    <td>${count}</td>
+                    <td>${percent}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // 合计行
+            const totalTr = document.createElement('tr');
+            totalTr.style.fontWeight = 'bold';
+            totalTr.style.background = '#f0f2f5';
+            totalTr.innerHTML = `
+                <td>-</td>
+                <td>合计</td>
+                <td>${total}</td>
+                <td>100%</td>
+            `;
+            tbody.appendChild(totalTr);
+        }
+        
+        function renderCPUCharts(distribution, total) {
+            if (charts.cpuPieChart) charts.cpuPieChart.destroy();
+            if (charts.cpuBarChart) charts.cpuBarChart.destroy();
+            
+            const labels = ['正常 (<5%)', '轻微竞争 (5-10%)', '明显压力 (>10%)', '严重瓶颈 (>20%)'];
+            const values = [
+                distribution['正常 (<5%)'],
+                distribution['轻微竞争 (5-10%)'],
+                distribution['明显压力 (>10%)'],
+                distribution['严重瓶颈 (>20%)']
+            ];
+            const colors = ['#52C41A', '#FAAD14', '#F5222D', '#722ED1'];
+            
+            const pieCtx = document.getElementById('cpuPieChart').getContext('2d');
+            charts.cpuPieChart = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'CPU利用率分布 (有效记录: ' + total + ')',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+            
+            const barCtx = document.getElementById('cpuBarChart').getContext('2d');
+            charts.cpuBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'VM数量',
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'CPU利用率对比',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderMemoryCharts(distribution, total) {
+            if (charts.memoryPieChart) charts.memoryPieChart.destroy();
+            if (charts.memoryBarChart) charts.memoryBarChart.destroy();
+            
+            const labels = ['严重浪费 (<30%)', '合理 (30-80%)', '可能偏紧 (>80%)'];
+            const values = [
+                distribution['严重浪费 (<30%)'],
+                distribution['合理 (30-80%)'],
+                distribution['可能偏紧 (>80%)']
+            ];
+            const colors = ['#FAAD14', '#52C41A', '#F5222D'];
+            
+            const pieCtx = document.getElementById('memoryPieChart').getContext('2d');
+            charts.memoryPieChart = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: '内存利用率分布 (有效记录: ' + total + ')',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+            
+            const barCtx = document.getElementById('memoryBarChart').getContext('2d');
+            charts.memoryBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'VM数量',
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: '内存利用率对比',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderStorageCharts(distribution, total) {
+            if (charts.storagePieChart) charts.storagePieChart.destroy();
+            if (charts.storageBarChart) charts.storageBarChart.destroy();
+            
+            const labels = ['严重浪费 (<30%)', '正常 (30-80%)', '偏满 (>80%)'];
+            const values = [
+                distribution['严重浪费 (<30%)'],
+                distribution['正常 (30-80%)'],
+                distribution['偏满 (>80%)']
+            ];
+            const colors = ['#FAAD14', '#52C41A', '#F5222D'];
+            
+            const pieCtx = document.getElementById('storagePieChart').getContext('2d');
+            charts.storagePieChart = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: '存储利用率分布 (有效记录: ' + total + ')',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+            
+            const barCtx = document.getElementById('storageBarChart').getContext('2d');
+            charts.storageBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'VM数量',
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: '存储利用率对比',
+                            font: { size: 14, weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderCPUTable(distribution, total) {
+            const tbody = document.getElementById('cpuTableBody');
+            tbody.innerHTML = '';
+            
+            const items = [
+                { range: '正常 (<5%)', status: '✅ 正常', count: distribution['正常 (<5%)'], color: '#52C41A' },
+                { range: '轻微竞争 (5-10%)', status: '⚠️ 轻微', count: distribution['轻微竞争 (5-10%)'], color: '#FAAD14' },
+                { range: '明显压力 (>10%)', status: '🔥 压力', count: distribution['明显压力 (>10%)'], color: '#F5222D' },
+                { range: '严重瓶颈 (>20%)', status: '🚨 瓶颈', count: distribution['严重瓶颈 (>20%)'], color: '#722ED1' }
+            ];
+            
+            items.forEach(item => {
+                const percent = total > 0 ? ((item.count / total) * 100).toFixed(2) : 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.range}</td>
+                    <td style="color: ${item.color}; font-weight: 600;">${item.status}</td>
+                    <td>${item.count}</td>
+                    <td>${percent}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            const totalTr = document.createElement('tr');
+            totalTr.style.fontWeight = 'bold';
+            totalTr.style.background = '#f0f2f5';
+            totalTr.innerHTML = `
+                <td>合计</td>
+                <td>-</td>
+                <td>${total}</td>
+                <td>100%</td>
+            `;
+            tbody.appendChild(totalTr);
+        }
+        
+        function renderMemoryTable(distribution, total) {
+            const tbody = document.getElementById('memoryTableBody');
+            tbody.innerHTML = '';
+            
+            const items = [
+                { range: '严重浪费 (<30%)', status: '⚠️ 浪费', count: distribution['严重浪费 (<30%)'], color: '#FAAD14' },
+                { range: '合理 (30-80%)', status: '✅ 合理', count: distribution['合理 (30-80%)'], color: '#52C41A' },
+                { range: '可能偏紧 (>80%)', status: '🔥 偏紧', count: distribution['可能偏紧 (>80%)'], color: '#F5222D' }
+            ];
+            
+            items.forEach(item => {
+                const percent = total > 0 ? ((item.count / total) * 100).toFixed(2) : 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.range}</td>
+                    <td style="color: ${item.color}; font-weight: 600;">${item.status}</td>
+                    <td>${item.count}</td>
+                    <td>${percent}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            const totalTr = document.createElement('tr');
+            totalTr.style.fontWeight = 'bold';
+            totalTr.style.background = '#f0f2f5';
+            totalTr.innerHTML = `
+                <td>合计</td>
+                <td>-</td>
+                <td>${total}</td>
+                <td>100%</td>
+            `;
+            tbody.appendChild(totalTr);
+        }
+        
+        function renderStorageTable(distribution, total) {
+            const tbody = document.getElementById('storageTableBody');
+            tbody.innerHTML = '';
+            
+            const items = [
+                { range: '严重浪费 (<30%)', status: '⚠️ 浪费', count: distribution['严重浪费 (<30%)'], color: '#FAAD14' },
+                { range: '正常 (30-80%)', status: '✅ 正常', count: distribution['正常 (30-80%)'], color: '#52C41A' },
+                { range: '偏满 (>80%)', status: '🔥 偏满', count: distribution['偏满 (>80%)'], color: '#F5222D' }
+            ];
+            
+            items.forEach(item => {
+                const percent = total > 0 ? ((item.count / total) * 100).toFixed(2) : 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.range}</td>
+                    <td style="color: ${item.color}; font-weight: 600;">${item.status}</td>
+                    <td>${item.count}</td>
+                    <td>${percent}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            const totalTr = document.createElement('tr');
+            totalTr.style.fontWeight = 'bold';
+            totalTr.style.background = '#f0f2f5';
+            totalTr.innerHTML = `
+                <td>合计</td>
+                <td>-</td>
+                <td>${total}</td>
+                <td>100%</td>
+            `;
+            tbody.appendChild(totalTr);
+        }
+        
+        function resetApp() {
+            console.log('🔄 重置应用');
+            
+            // 隐藏结果
+            document.getElementById('analysisResults').classList.add('hidden');
+            
+            // 销毁图表
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.destroy) chart.destroy();
+            });
+            
+            // 重置文件输入
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('errorMessage').classList.remove('show');
+            
+            // 显示上传区域
+            document.getElementById('uploadArea').style.display = 'block';
+            document.getElementById('optionsContainer').style.display = 'grid';
+            
+            vmData = [];
+            charts = {};
+            rawData = null;
+        }
+
+        async function exportPDF() {
+            try {
+                console.log('✅ 开始导出PDF...');
+                
+                if (vmData.length === 0) {
+                    alert('请先上传并分析数据');
+                    return;
+                }
+
+                console.log('✅ vmData数量:', vmData.length);
+                
+                if (!window.jspdf) {
+                    console.error('❌ jsPDF库未加载');
+                    alert('PDF导出库未加载，请刷新页面重试');
+                    return;
+                }
+                
+                const { jsPDF } = window.jspdf;
+                console.log('✅ jsPDF版本:', jsPDF.version || '未知');
+                
+                const doc = new jsPDF({
+                    orientation: 'landscape',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                console.log('✅ PDF文档创建成功');
+                
+                const margin = 15;
+                let y = margin;
+                const region = getSelectedRegion();
+                const currency = getSelectedCurrency();
+                const currencySymbol = currency === 'CNY' ? '¥' : '$';
+                const today = new Date().toISOString().split('T')[0];
+                
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                
+                function createChartImage(chartType, labels, data, backgroundColors, title) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 500;
+                    canvas.height = 350;
+                    canvas.style.position = 'absolute';
+                    canvas.style.left = '-9999px';
+                    document.body.appendChild(canvas);
+                    
+                    const ctx = canvas.getContext('2d');
+                    
+                    new Chart(ctx, {
+                        type: chartType,
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: data,
+                                backgroundColor: backgroundColors,
+                                borderColor: '#ffffff',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: false,
+                            animation: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: title,
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    },
+                                    color: '#1890ff'
+                                },
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        font: {
+                                            size: 11
+                                        },
+                                        padding: 15
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            const imgData = canvas.toDataURL('image/png');
+                            document.body.removeChild(canvas);
+                            resolve(imgData);
+                        }, 100);
+                    });
+                }
+                
+                // 封面
+                doc.setFillColor(24, 144, 255);
+                doc.rect(0, 0, pageWidth, 60, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.setFont('helvetica', 'bold');
+                doc.text('RVTools VMware Analysis Report', pageWidth / 2, 28, { align: 'center' });
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Huawei Cloud Migration Assessment', pageWidth / 2, 45, { align: 'center' });
+                
+                doc.setTextColor(0, 0, 0);
+                y = 80;
+                
+                // 基本信息
+                doc.setFontSize(11);
+                doc.text('Region: ' + region, margin, y);
+                doc.text('Date: ' + today, pageWidth / 2, y);
+                doc.text('Currency: ' + currency, pageWidth - margin, y, { align: 'right' });
+                y += 20;
+                
+                // === Page 1: Source Resources ===
+                let totalVMs = 0, totalVCPUs = 0, totalMemory = 0, totalStorageProvisioned = 0;
+                let osTypeDistribution = { 'Windows': 0, 'Linux': 0, 'Others': 0 };
+                let osDistribution = {};
+                let cpuReadyDistribution = { 'Normal (<5%)': 0, 'Mild Competition (5-10%)': 0, 'Significant Pressure (>10%)': 0, 'Severe Bottleneck (>20%)': 0 };
+                let memoryUtilDistribution = { 'Severe Waste (<30%)': 0, 'Reasonable (30-80%)': 0, 'May Be Tight (>80%)': 0 };
+                let storageUtilDistribution = { 'Severe Waste (<30%)': 0, 'Normal (30-80%)': 0, 'Full (>80%)': 0 };
+                
+                vmData.forEach(row => {
+                    totalVMs++;
+                    const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                    totalVCPUs += vcpu;
+                    const memory = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                    totalMemory += memory;
+                    const storageProvisioned = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                    totalStorageProvisioned += storageProvisioned;
+                    const os = getField(row, ['OS', 'Guest OS', 'Operating System', 'OS According to the VMware Tools', 'GuestOS', 'Guest']) || 'Unknown';
+                    const osType = getOSType(os);
+                    osTypeDistribution[osType]++;
+                    if (!osDistribution[os]) osDistribution[os] = 0;
+                    osDistribution[os]++;
+                    
+                    // CPU Ready
+                    const cpuReady = parseFloat(getField(row, ['CPU Ready', 'Overall CPU Readiness', 'CPU Ready (%)']) || -1);
+                    if (cpuReady >= 0) {
+                        if (cpuReady < 5) cpuReadyDistribution['Normal (<5%)']++;
+                        else if (cpuReady < 10) cpuReadyDistribution['Mild Competition (5-10%)']++;
+                        else if (cpuReady < 20) cpuReadyDistribution['Significant Pressure (>10%)']++;
+                        else cpuReadyDistribution['Severe Bottleneck (>20%)']++;
+                    }
+                    
+                    // Memory Utilization
+                    const activeMemory = parseFloat(getField(row, ['Active', 'Active Memory', 'Active Memory (MB)']) || 0);
+                    if (memory > 0 && activeMemory > 0) {
+                        const memUtil = (activeMemory / memory) * 100;
+                        if (memUtil < 30) memoryUtilDistribution['Severe Waste (<30%)']++;
+                        else if (memUtil <= 80) memoryUtilDistribution['Reasonable (30-80%)']++;
+                        else memoryUtilDistribution['May Be Tight (>80%)']++;
+                    }
+                    
+                    // Storage Utilization
+                    const storageInUse = parseFloat(getField(row, ['In Use', 'In Use MiB', 'In Use (MB)']) || 0);
+                    if (storageProvisioned > 0 && storageInUse > 0) {
+                        const storageUtil = (storageInUse / storageProvisioned) * 100;
+                        if (storageUtil < 30) storageUtilDistribution['Severe Waste (<30%)']++;
+                        else if (storageUtil <= 80) storageUtilDistribution['Normal (30-80%)']++;
+                        else storageUtilDistribution['Full (>80%)']++;
+                    }
+                });
+                
+                // Section 1: Source Resource Summary
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(24, 144, 255);
+                doc.text('1. Source Resource Summary', margin, y);
+                y += 12;
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(0, 0, 0);
+                
+                const summaryData = [
+                    ['Total VMs', totalVMs.toString()],
+                    ['Total vCPUs', totalVCPUs.toString()],
+                    ['Total Memory', (totalMemory / 1024 / 1024).toFixed(2) + ' TB'],
+                    ['Total Storage', (totalStorageProvisioned / 1024 / 1024).toFixed(2) + ' TB']
+                ];
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Item', 'Value']],
+                        body: summaryData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [24, 144, 255],
+                            textColor: 255,
+                            fontSize: 10,
+                            fontStyle: 'bold'
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        tableWidth: 80,
+                        margin: { left: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 15;
+                } else {
+                    y += 50;
+                }
+                
+                // Section 2: OS Type Distribution
+                if (y > pageHeight - 80) {
+                    doc.addPage();
+                    y = margin;
+                }
+                
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(24, 144, 255);
+                doc.text('2. OS Type Distribution', margin, y);
+                y += 12;
+                
+                const osData = [
+                    ['Windows', osTypeDistribution['Windows'], ((osTypeDistribution['Windows'] / totalVMs) * 100).toFixed(1) + '%'],
+                    ['Linux', osTypeDistribution['Linux'], ((osTypeDistribution['Linux'] / totalVMs) * 100).toFixed(1) + '%'],
+                    ['Others', osTypeDistribution['Others'], ((osTypeDistribution['Others'] / totalVMs) * 100).toFixed(1) + '%']
+                ];
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['OS Type', 'Count', 'Percentage']],
+                        body: osData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [24, 144, 255],
+                            textColor: 255,
+                            fontSize: 10,
+                            fontStyle: 'bold'
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        tableWidth: 80,
+                        margin: { left: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 15;
+                } else {
+                    y += 40;
+                }
+                
+                const osChartImg = await createChartImage(
+                    'pie',
+                    ['Windows', 'Linux', 'Others'],
+                    [osTypeDistribution['Windows'], osTypeDistribution['Linux'], osTypeDistribution['Others']],
+                    ['#1890ff', '#52c41a', '#faad14'],
+                    'OS Type Distribution'
+                );
+                doc.addImage(osChartImg, 'PNG', 105, y - 60, 140, 100);
+                y += 50;
+                
+                // Section 3: CPU Utilization Analysis
+                if (y > pageHeight - 100) {
+                    doc.addPage();
+                    y = margin;
+                }
+                
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(24, 144, 255);
+                doc.text('3. CPU Utilization Analysis', margin, y);
+                y += 12;
+                
+                const validCPUCount = Object.values(cpuReadyDistribution).reduce((a, b) => a + b, 0);
+                const cpuData = Object.entries(cpuReadyDistribution).map(([key, value]) => [
+                    key,
+                    value.toString(),
+                    validCPUCount > 0 ? ((value / validCPUCount) * 100).toFixed(1) + '%' : '0%'
+                ]);
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Range', 'VM Count', 'Percentage']],
+                        body: cpuData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [24, 144, 255],
+                            textColor: 255,
+                            fontSize: 10,
+                            fontStyle: 'bold'
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        margin: { left: margin, right: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 10;
+                }
+                
+                const cpuChartImg = await createChartImage(
+                    'pie',
+                    ['Normal (<5%)', 'Mild Competition (5-10%)', 'Significant Pressure (>10%)', 'Severe Bottleneck (>20%)'],
+                    [cpuReadyDistribution['Normal (<5%)'], cpuReadyDistribution['Mild Competition (5-10%)'], cpuReadyDistribution['Significant Pressure (>10%)'], cpuReadyDistribution['Severe Bottleneck (>20%)']],
+                    ['#52c41a', '#faad14', '#ff7a45', '#ff4d4f'],
+                    'CPU Utilization Distribution'
+                );
+                doc.addImage(cpuChartImg, 'PNG', margin, y, 140, 100);
+                y += 110;
+                
+                // Oversubscription Ratio
+                const physicalCores = Math.ceil(totalVCPUs / 8);
+                const oversubscriptionRatio = physicalCores > 0 ? (totalVCPUs / physicalCores).toFixed(2) : 0;
+                doc.setFontSize(10);
+                doc.text('CPU Oversubscription Ratio: ' + oversubscriptionRatio + ':1', margin, y);
+                y += 15;
+                
+                // Section 4: Memory Utilization
+                if (y > pageHeight - 80) {
+                    doc.addPage();
+                    y = margin;
+                }
+                
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(24, 144, 255);
+                doc.text('4. Memory Utilization Analysis', margin, y);
+                y += 12;
+                
+                const validMemCount = Object.values(memoryUtilDistribution).reduce((a, b) => a + b, 0);
+                const memData = Object.entries(memoryUtilDistribution).map(([key, value]) => [
+                    key,
+                    value.toString(),
+                    validMemCount > 0 ? ((value / validMemCount) * 100).toFixed(1) + '%' : '0%'
+                ]);
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Range', 'VM Count', 'Percentage']],
+                        body: memData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [24, 144, 255],
+                            textColor: 255,
+                            fontSize: 10,
+                            fontStyle: 'bold'
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        margin: { left: margin, right: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 15;
+                }
+                
+                const memChartImg = await createChartImage(
+                    'pie',
+                    ['Severe Waste (<30%)', 'Reasonable (30-80%)', 'May Be Tight (>80%)'],
+                    [memoryUtilDistribution['Severe Waste (<30%)'], memoryUtilDistribution['Reasonable (30-80%)'], memoryUtilDistribution['May Be Tight (>80%)']],
+                    ['#52c41a', '#faad14', '#ff4d4f'],
+                    'Memory Utilization Distribution'
+                );
+                doc.addImage(memChartImg, 'PNG', margin, y, 140, 100);
+                y += 110;
+                
+                // Section 5: Storage Utilization
+                if (y > pageHeight - 80) {
+                    doc.addPage();
+                    y = margin;
+                }
+                
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(24, 144, 255);
+                doc.text('5. Storage Utilization Analysis', margin, y);
+                y += 12;
+                
+                const validStorageCount = Object.values(storageUtilDistribution).reduce((a, b) => a + b, 0);
+                const storageData = Object.entries(storageUtilDistribution).map(([key, value]) => [
+                    key,
+                    value.toString(),
+                    validStorageCount > 0 ? ((value / validStorageCount) * 100).toFixed(1) + '%' : '0%'
+                ]);
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Range', 'VM Count', 'Percentage']],
+                        body: storageData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [24, 144, 255],
+                            textColor: 255,
+                            fontSize: 10,
+                            fontStyle: 'bold'
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        margin: { left: margin, right: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 15;
+                }
+                
+                const storageChartImg = await createChartImage(
+                    'pie',
+                    ['Severe Waste (<30%)', 'Normal (30-80%)', 'Full (>80%)'],
+                    [storageUtilDistribution['Severe Waste (<30%)'], storageUtilDistribution['Normal (30-80%)'], storageUtilDistribution['Full (>80%)']],
+                    ['#52c41a', '#faad14', '#ff4d4f'],
+                    'Storage Utilization Distribution'
+                );
+                doc.addImage(storageChartImg, 'PNG', margin, y, 140, 100);
+                y += 110;
+                
+                // === Page 2: Huawei Cloud Mapping ===
+                doc.addPage();
+                y = margin;
+                
+                let totalMappedVcpu = 0, totalMappedMemory = 0, totalMonthlyCost = 0;
+                vmData.forEach(row => {
+                    const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                    const memoryMB = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                    const nicCount = parseInt(getField(row, ['NIC', 'Network Adapters', 'Network', 'Num NIC']) || 1);
+                    const cpuUsage = parseFloat(getField(row, [
+                        'Overall CPU Readiness', 'CPU Ready', 'CPU Ready (%)',
+                        'CPU Usage', 'CPU Usage (%)', 'CPU%', 'Usage'
+                    ]) || 0);
+                    const dbResult = isDatabaseVM(row);
+                    const isDB = dbResult.isDB;
+                    const matchedECS = matchECSInstance(vcpu, memoryMB, nicCount, isDB, cpuUsage);
+                    const diskType = getStorageType(isDB);
+                    const storageProvisioned = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                    const diskGB = Math.ceil(storageProvisioned / 1024);
+                    totalMonthlyCost += calculateMonthlyCost(matchedECS, diskGB, diskType, region);
+                    totalMappedVcpu += matchedECS.vcpu;
+                    totalMappedMemory += matchedECS.memory;
+                });
+                
+                const yearlyCost1Year = totalMonthlyCost * 12 * 0.85;
+                const yearlyCost3Year = totalMonthlyCost * 12 * 0.65;
+                
+                // Section 6: Huawei Cloud Mapping Summary
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(24, 144, 255);
+                doc.text('6. Huawei Cloud Mapping Summary', margin, y);
+                y += 12;
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(0, 0, 0);
+                
+                const mappedStorage = vmData.reduce((sum, row) => {
+                    const provisioned = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                    return sum + Math.ceil(provisioned / 1024);
+                }, 0);
+                
+                const mappedData = [
+                    ['Total VMs', totalVMs.toString()],
+                    ['Total vCPUs', totalMappedVcpu.toString()],
+                    ['Total Memory', totalMappedMemory.toFixed(2) + ' GB'],
+                    ['Total Storage', (mappedStorage / 1024).toFixed(2) + ' TB'],
+                    ['Monthly Cost', currencySymbol + totalMonthlyCost.toFixed(2)],
+                    ['Yearly (1Y)', currencySymbol + yearlyCost1Year.toFixed(2)],
+                    ['Yearly (3Y)', currencySymbol + yearlyCost3Year.toFixed(2)]
+                ];
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Item', 'Value']],
+                        body: mappedData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [24, 144, 255],
+                            textColor: 255,
+                            fontSize: 10,
+                            fontStyle: 'bold'
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        tableWidth: 100,
+                        margin: { left: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 15;
+                } else {
+                    y += 60;
+                }
+                
+                // Section 7: Top 20 VMs Mapping
+                if (y < pageHeight - 100) {
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(24, 144, 255);
+                    doc.text('7. Top 20 VM Details', margin, y);
+                    y += 12;
+                    
+                    const vmTableData = vmData.slice(0, 20).map(row => {
+                        const name = getField(row, ['VM Name', 'Name', 'VM', 'Virtual Machine', 'VirtualMachineName']) || 'Unknown';
+                        const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                        const memoryMB = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                        const nicCount = parseInt(getField(row, ['NIC', 'Network Adapters', 'Network', 'Num NIC']) || 1);
+                        const cpuUsage = parseFloat(getField(row, [
+                            'Overall CPU Readiness', 'CPU Ready', 'CPU Ready (%)',
+                            'CPU Usage', 'CPU Usage (%)', 'CPU%', 'Usage'
+                        ]) || 0);
+                        const dbResult = isDatabaseVM(row);
+                        const isDB = dbResult.isDB;
+                        const matchedECS = matchECSInstance(vcpu, memoryMB, nicCount, isDB, cpuUsage);
+                        
+                        const displayName = name.length > 15 ? name.substring(0, 12) + '...' : name;
+                        return [
+                            displayName,
+                            vcpu.toString(),
+                            (memoryMB / 1024).toFixed(0) + 'GB',
+                            matchedECS.type,
+                            matchedECS.vcpu.toString(),
+                            isDB ? 'Y' : 'N'
+                        ];
+                    });
+                    
+                    if (typeof doc.autoTable !== 'undefined' && vmTableData.length > 0) {
+                        doc.autoTable({
+                            startY: y,
+                            head: [['VM Name', 'vCPU', 'Mem', 'ECS Type', 'ECS vCPU', 'DB']],
+                            body: vmTableData,
+                            theme: 'grid',
+                            headStyles: {
+                                fillColor: [24, 144, 255],
+                                textColor: 255,
+                                fontSize: 8,
+                                fontStyle: 'bold'
+                            },
+                            bodyStyles: {
+                                fontSize: 7
+                            },
+                            margin: { left: margin, right: margin }
+                        });
+                    }
+                }
+                
+                // Add page numbers
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    doc.text('Page ' + i + ' of ' + totalPages, pageWidth / 2, pageHeight - 10, { align: 'center' });
+                }
+                
+                doc.save('RVTools_Analysis_' + today + '.pdf');
+                console.log('✅ PDF导出完成');
+            } catch (error) {
+                console.error('❌ PDF导出失败:', error);
+                alert('PDF导出失败: ' + error.message);
+            }
+        }
+
+        function exportExcel() {
+            if (vmData.length === 0) {
+                alert('请先上传并分析数据');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const region = getSelectedRegion();
+            const currency = getSelectedCurrency();
+            const currencySymbol = currency === 'CNY' ? '¥' : '$';
+            const today = new Date().toLocaleDateString('zh-CN');
+
+            let totalVMs = 0, totalVCPUs = 0, totalMemory = 0, totalStorageProvisioned = 0;
+            vmData.forEach(row => {
+                totalVMs++;
+                const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                totalVCPUs += vcpu;
+                const memory = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                totalMemory += memory;
+                const storageProvisioned = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                totalStorageProvisioned += storageProvisioned;
+            });
+
+            let totalMonthlyCost = 0;
+            let totalMappedVcpu = 0;
+            let totalMappedMemory = 0;
+            let totalMappedStorage = 0;
+            vmData.forEach(row => {
+                const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                const memoryMB = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                const os = getField(row, ['OS', 'Guest OS', 'Operating System', 'OS According to the VMware Tools', 'GuestOS', 'Guest']) || 'Unknown';
+                const nicCount = parseInt(getField(row, ['NIC', 'Network Adapters', 'Network', 'Num NIC']) || 1);
+                const cpuUsage = parseFloat(getField(row, [
+                    'Overall CPU Readiness', 'CPU Ready', 'CPU Ready (%)',
+                    'CPU Usage', 'CPU Usage (%)', 'CPU%', 'Usage',
+                    'CPU Usage Average', 'CPU Usage Peak', 'CPU Active',
+                    'CPU Utilization', 'Overall CPU Usage',
+                    'Host CPU Usage', 'Guest CPU Usage', 'VM CPU Usage',
+                    'Used CPU', 'Active CPU', 'CPU Used',
+                    'Percent CPU', 'CPU Percent', 'CPU Load', 'Load'
+                ]) || 0);
+                const memoryGB = memoryMB / 1024;
+                const dbResult = isDatabaseVM(row);
+                const isDB = dbResult.isDB;
+                const matchedECS = matchECSInstance(vcpu, memoryMB, nicCount, isDB, cpuUsage);
+                const diskType = getStorageType(isDB);
+                const storageProvisioned = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                const diskGB = Math.ceil(storageProvisioned / 1024);
+                totalMonthlyCost += calculateMonthlyCost(matchedECS, diskGB, diskType, region);
+                totalMappedVcpu += matchedECS.vcpu;
+                totalMappedMemory += matchedECS.memory;
+                totalMappedStorage += diskGB;
+            });
+            const yearlyCost1Year = calculateYearlyCost(totalMonthlyCost, 1);
+            const yearlyCost3Year = calculateYearlyCost(totalMonthlyCost, 3);
+
+            const summaryData = [
+                ['RVTools VMware虚拟机分析 - 华为云迁移评估'],
+                [],
+                ['基本信息'],
+                ['Region', region],
+                ['货币类型', currency],
+                ['生成日期', today],
+                [],
+                ['源端资源统计'],
+                ['虚拟机总数', totalVMs, '台'],
+                ['vCPU总量', totalVCPUs, '核'],
+                ['内存总量', (totalMemory / 1024).toFixed(1), 'GB'],
+                ['存储总量', (totalStorageProvisioned / 1024 / 1024).toFixed(2), 'TB'],
+                [],
+                ['华为云资源映射'],
+                ['映射VM数', totalVMs, '台'],
+                ['映射vCPU总量', totalMappedVcpu, '核'],
+                ['映射内存总量', totalMappedMemory, 'GB'],
+                ['映射存储总量', (totalMappedStorage / 1024).toFixed(2), 'TB'],
+                [],
+                ['费用估算'],
+                ['月度费用', totalMonthlyCost.toFixed(2), currencySymbol],
+                ['年度费用(1年)', yearlyCost1Year.toFixed(2), currencySymbol],
+                ['年度费用(3年)', yearlyCost3Year.toFixed(2), currencySymbol]
+            ];
+
+            const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
+
+            summaryWS['!cols'] = [
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 10 }
+            ];
+
+            summaryWS['A1'].s = {
+                font: { bold: true, sz: 16, color: { rgb: '1890FF' } },
+                alignment: { horizontal: 'center' }
+            };
+
+            for (let i = 3; i <= 3; i++) {
+                if (summaryWS['A' + i]) {
+                    summaryWS['A' + i].s = { font: { bold: true, color: { rgb: '0050B3' } } };
+                }
+            }
+
+            for (let i = 8; i <= 8; i++) {
+                if (summaryWS['A' + i]) {
+                    summaryWS['A' + i].s = { font: { bold: true, color: { rgb: '0050B3' } } };
+                }
+            }
+
+            for (let i = 14; i <= 14; i++) {
+                if (summaryWS['A' + i]) {
+                    summaryWS['A' + i].s = { font: { bold: true, color: { rgb: '0050B3' } } };
+                }
+            }
+
+            for (let i = 20; i <= 20; i++) {
+                if (summaryWS['A' + i]) {
+                    summaryWS['A' + i].s = { font: { bold: true, color: { rgb: '0050B3' } } };
+                }
+            }
+
+            XLSX.utils.book_append_sheet(wb, summaryWS, '汇总信息');
+
+            const mappingHeader = [
+                'VM Name', 'OS', 'vCPU', 'Memory (GB)', 'CPU Usage (%)', 'Active Memory (GB)',
+                'Provisioned (GB)', 'In Use (GB)', 'DB', 'CPU Memory Ratio', 'Mem Util (%)',
+                'Storage Util (%)', 'Category', 'ECS Family', 'ECS Instance Type', 'ECS vCPU',
+                'ECS Memory (GiB)', 'ECS CPU/Mem Ratio', '与源端vCPU比较', '与源端CPU内存比差异', '数据库识别依据',
+                'Disk (GB)', 'Disk Type', 'Monthly', 'Yearly(1年)', 'Yearly(3年)'
+            ];
+
+            const mappingData = vmData.map(row => {
+                const name = getField(row, ['VM Name', 'Name', 'VM', 'Virtual Machine', 'VirtualMachineName']) || '';
+                const os = getField(row, ['OS', 'Guest OS', 'Operating System', 'OS According to the VMware Tools', 'GuestOS', 'Guest']) || 'Unknown';
+                const vcpu = parseInt(getField(row, ['CPU', 'vCPU', 'Provisioned CPUs', 'CPUs', 'Num CPU', 'Sockets']) || 0);
+                const memoryMB = parseInt(getField(row, ['Memory', 'RAM', 'Provisioned Memory MB', 'Memory MB', 'MemoryMB']) || 0);
+                const cpuUsage = parseFloat(getField(row, [
+                    'Overall CPU Readiness', 'CPU Ready', 'CPU Ready (%)',
+                    'CPU Usage', 'CPU Usage (%)', 'CPU%', 'Usage',
+                    'CPU Usage Average', 'CPU Usage Peak', 'CPU Active',
+                    'CPU Utilization', 'Overall CPU Usage',
+                    'Host CPU Usage', 'Guest CPU Usage', 'VM CPU Usage',
+                    'Used CPU', 'Active CPU', 'CPU Used',
+                    'Percent CPU', 'CPU Percent', 'CPU Load', 'Load'
+                ]) || 0);
+                const activeMemory = parseFloat(getField(row, ['Active', 'Active Memory', 'Active Memory (MB)']) || 0);
+                const provisionedMB = parseFloat(getField(row, ['Provisioned', 'Provisioned MiB', 'Provisioned (MiB)', 'Total Provisioned Space (MiB)', 'Disk.Provisioned']) || 0);
+                const inUseMB = parseFloat(getField(row, ['In Use', 'In Use MiB', 'In Use (MB)']) || 0);
+
+                const memoryGB = memoryMB / 1024;
+                const cpuMemoryRatio = vcpu > 0 ? (memoryGB / vcpu).toFixed(2) : '0';
+                const memUtilization = memoryMB > 0 && activeMemory > 0 ? ((activeMemory / memoryMB) * 100).toFixed(2) : '0';
+                const storageUtilization = provisionedMB > 0 && inUseMB > 0 ? ((inUseMB / provisionedMB) * 100).toFixed(2) : '0';
+
+                const dbResult = isDatabaseVM(row);
+                const isDB = dbResult.isDB;
+                const dbReason = dbResult.reason;
+                const category = categorizeVM(vcpu, memoryGB, isDB);
+                
+                const nicCount = parseInt(getField(row, ['NIC', 'Network Adapters', 'Network', 'Num NIC']) || 1);
+                const matchedECS = matchECSInstance(vcpu, memoryMB, nicCount, isDB, cpuUsage);
+                const diskType = getStorageType(isDB);
+                const diskGB = Math.ceil(provisionedMB / 1024);
+                const monthlyCost = calculateMonthlyCost(matchedECS, diskGB, diskType, region);
+                const yearlyCost1Year = calculateYearlyCost(monthlyCost, 1);
+                const yearlyCost3Year = calculateYearlyCost(monthlyCost, 3);
+                const memoryGiB = matchedECS.memory;
+                const ecsCpuMemoryRatio = (matchedECS.memory / matchedECS.vcpu).toFixed(2);
+                
+                const vcpuDiff = matchedECS.vcpu - vcpu;
+                let vcpuCompare = '等于';
+                if (vcpuDiff > 0) {
+                    vcpuCompare = vcpuDiff <= 2 ? '略高' : '较高';
+                } else if (vcpuDiff < 0) {
+                    vcpuCompare = vcpuDiff >= -2 ? '略低' : '较低';
+                }
+                
+                const ratioDiff = parseFloat(ecsCpuMemoryRatio) - parseFloat(cpuMemoryRatio);
+                const ratioDiffPercent = parseFloat(cpuMemoryRatio) > 0 ? ((ratioDiff / parseFloat(cpuMemoryRatio)) * 100).toFixed(1) : 0;
+                const ratioDiffDisplay = ratioDiff >= 0 ? '+' + ratioDiffPercent + '%' : ratioDiffPercent + '%';
+
+                return [
+                    name,
+                    os,
+                    vcpu,
+                    memoryGB.toFixed(2),
+                    cpuUsage.toFixed(2),
+                    (activeMemory / 1024).toFixed(2),
+                    (provisionedMB / 1024).toFixed(2),
+                    (inUseMB / 1024).toFixed(2),
+                    isDB ? '是' : '否',
+                    cpuMemoryRatio,
+                    memUtilization,
+                    storageUtilization,
+                    category,
+                    matchedECS.family,
+                    matchedECS.type,
+                    matchedECS.vcpu,
+                    memoryGiB,
+                    ecsCpuMemoryRatio,
+                    vcpuCompare,
+                    ratioDiffDisplay,
+                    dbReason,
+                    diskGB,
+                    diskType,
+                    monthlyCost.toFixed(2),
+                    yearlyCost1Year.toFixed(2),
+                    yearlyCost3Year.toFixed(2)
+                ];
+            });
+            
+            const allData = [mappingHeader, ...mappingData];
+            const mappingWS = XLSX.utils.aoa_to_sheet(allData);
+            
+            const colWidths = [25, 30, 8, 12, 12, 15, 15, 12, 5, 15, 10, 12, 12, 10, 18, 10, 12, 15, 15, 15, 30, 10, 12, 12, 12, 12];
+            mappingWS['!cols'] = colWidths.map(w => ({ wch: w }));
+
+            const range = XLSX.utils.decode_range(mappingWS['!ref']);
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
+                    const cell = mappingWS[XLSX.utils.encode_cell({ r: R, c: C })];
+                    if (cell) {
+                        if (R === 0) {
+                            cell.s = {
+                                font: { bold: true, color: { rgb: 'FFFFFF' } },
+                                fill: { fgColor: { rgb: '1890FF' } },
+                                alignment: { horizontal: 'center' }
+                            };
+                        } else {
+                            cell.s = {
+                                alignment: { horizontal: 'center' }
+                            };
+                        }
+                    }
+                }
+            }
+
+            XLSX.utils.book_append_sheet(wb, mappingWS, '华为云映射明细');
+
+            const fileName = '华为云虚机映射明细_' + today + '.xlsx';
+            XLSX.writeFile(wb, fileName);
+            console.log('✅ Excel导出完成: ' + fileName);
+        }
+    </script>
+</body>
+</html>

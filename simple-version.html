@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RVTools分析工具 - 简化版</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+        }
+        
+        .upload-section {
+            background: #f8f9fa;
+            border: 3px dashed #1890FF;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .upload-section.dragover {
+            border-color: #52c41a;
+            background: #f6ffed;
+        }
+        
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        /* 关键：直接显示input元素 */
+        input[type="file"] {
+            display: block !important;
+            margin: 20px auto;
+            padding: 15px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #1890FF;
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #f6ffed;
+            border: 1px solid #52c41a;
+            color: #389e0d;
+            display: block;
+        }
+        
+        .status.error {
+            background: #fff2f0;
+            border: 1px solid #f5222d;
+            color: #cf1322;
+            display: block;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #1890FF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+            margin-top: 30px;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .result-card h3 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .result-card p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .btn-export {
+            background: #52c41a;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        
+        .btn-export:hover {
+            background: #389e0d;
+        }
+        
+        .test-section {
+            background: #fff7e6;
+            border: 2px solid #faad14;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .test-section.show {
+            display: block;
+        }
+        
+        .test-btn {
+            background: #faad14;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .console-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 13px;
+            border-radius: 8px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 RVTools VMware分析工具</h1>
+        <p class="subtitle">简单、快速、一键分析</p>
+        
+        <!-- 测试部分 -->
+        <div class="test-section" id="testSection">
+            <h3 style="color: #faad14; margin-bottom: 15px;">🔧 测试工具</h3>
+            <button class="test-btn" onclick="testAlert()">测试1: 弹窗</button>
+            <button class="test-btn" onclick="testConsole()">测试2: 控制台</button>
+            <button class="test-btn" onclick="testFileInput()">测试3: 文件选择</button>
+            <div class="console-log" id="consoleLog">控制台输出将会显示在这里...</div>
+        </div>
+        
+        <!-- 上传部分 -->
+        <div class="upload-section" id="uploadArea">
+            <div class="icon">📁</div>
+            <div class="upload-text">请选择您的RVTools Excel文件 (.xlsx 或 .xls)</div>
+            
+            <!-- 关键：直接使用input元素，不做任何隐藏 -->
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            
+            <div class="status" id="status"></div>
+        </div>
+        
+        <!-- 加载中 -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在分析Excel文件，请稍候...</p>
+        </div>
+        
+        <!-- 结果 -->
+        <div class="results" id="results">
+            <h2 style="margin-bottom: 20px;">✅ 分析结果</h2>
+            
+            <div class="result-grid" id="resultGrid"></div>
+            
+            <h3 style="margin: 30px 0 15px;">📊 虚拟机列表</h3>
+            <table id="vmTable">
+                <thead>
+                    <tr>
+                        <th>VM名称</th>
+                        <th>操作系统</th>
+                        <th>vCPU</th>
+                        <th>内存(MB)</th>
+                    </tr>
+                </thead>
+                <tbody id="vmTableBody"></tbody>
+            </table>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn-export" onclick="exportToExcel()">📊 导出Excel</button>
+                <button class="btn-export" onclick="resetApp()">🔄 重新上传</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 简单的日志函数
+        function log(msg) {
+            console.log(msg);
+            const logDiv = document.getElementById('consoleLog');
+            if (logDiv) {
+                logDiv.innerHTML += '<div>[' + new Date().toLocaleTimeString() + '] ' + msg + '</div>';
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        }
+        
+        // 测试函数
+        function testAlert() {
+            log('testAlert() 调用');
+            alert('✅ 弹窗功能正常！\n如果看到这个说明JavaScript工作正常');
+        }
+        
+        function testConsole() {
+            log('testConsole() 调用');
+            console.log('✅ 控制台输出正常');
+            console.log('XLSX库状态:', typeof XLSX);
+            alert('✅ 请按F12打开控制台查看输出');
+        }
+        
+        function testFileInput() {
+            log('testFileInput() 调用');
+            log('查找fileInput元素...');
+            const input = document.getElementById('fileInput');
+            log('找到元素: ' + (input ? '是' : '否'));
+            if (input) {
+                log('input.type: ' + input.type);
+                log('input.style.display: ' + input.style.display);
+            }
+            alert('✅ 测试完成，请查看日志');
+        }
+        
+        // 显示测试区域
+        document.getElementById('testSection').classList.add('show');
+        
+        log('页面加载完成');
+        log('XLSX库: ' + (typeof XLSX !== 'undefined' ? '✅ 已加载' : '❌ 未加载'));
+        
+        // 等待DOM完全加载
+        window.onload = function() {
+            log('window.onload 触发');
+            initApp();
+        };
+        
+        function initApp() {
+            log('initApp() 开始');
+            
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('uploadArea');
+            
+            if (!fileInput) {
+                log('❌ 找不到fileInput元素！');
+                return;
+            }
+            
+            log('✅ fileInput元素已找到');
+            
+            // 设置onchange事件 - 最简单的方式
+            fileInput.onchange = function(e) {
+                log('========== fileInput.onchange 触发 ==========');
+                
+                const files = e.target.files;
+                log('文件数量: ' + (files ? files.length : 0));
+                
+                if (!files || files.length === 0) {
+                    log('❌ 没有选择文件');
+                    return;
+                }
+                
+                const file = files[0];
+                log('文件名: ' + file.name);
+                log('文件大小: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+                
+                // 显示确认
+                alert('✅ 文件已选择：\n\n' + file.name + '\n\n点击确定开始解析');
+                
+                // 处理文件
+                processFile(file);
+            };
+            
+            log('✅ onchange事件已设置');
+            
+            // 拖拽事件
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                log('drop事件触发');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    alert('✅ 拖拽文件：\n\n' + file.name + '\n\n点击确定开始解析');
+                    processFile(file);
+                }
+            });
+            
+            log('initApp() 完成');
+        }
+        
+        // 处理文件
+        function processFile(file) {
+            log('processFile() 开始');
+            
+            const status = document.getElementById('status');
+            status.className = 'status';
+            status.textContent = '正在处理文件: ' + file.name;
+            
+            // 显示加载
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('uploadArea').style.display = 'none';
+            
+            // 读取文件
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                log('reader.onload 触发');
+                
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    log('Excel工作表数量: ' + workbook.SheetNames.length);
+                    log('工作表列表: ' + workbook.SheetNames.join(', '));
+                    
+                    // 查找Vinfo表
+                    let vinfoData = [];
+                    for (let i = 0; i < workbook.SheetNames.length; i++) {
+                        const sheetName = workbook.SheetNames[i];
+                        if (sheetName.toLowerCase().includes('vinfo')) {
+                            log('✅ 找到Vinfo表: ' + sheetName);
+                            vinfoData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                            break;
+                        }
+                    }
+                    
+                    if (vinfoData.length === 0) {
+                        log('❌ 未找到Vinfo表，尝试所有工作表');
+                        // 尝试第一个工作表
+                        const firstSheet = workbook.SheetNames[0];
+                        vinfoData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+                        log('使用工作表 ' + firstSheet + ', 数据行数: ' + vinfoData.length);
+                    } else {
+                        log('Vinfo数据行数: ' + vinfoData.length);
+                    }
+                    
+                    // 显示结果
+                    displayResults(vinfoData);
+                    
+                } catch (error) {
+                    log('❌ 错误: ' + error.message);
+                    log(error.stack);
+                    
+                    status.className = 'status error';
+                    status.textContent = '解析失败: ' + error.message;
+                    document.getElementById('loading').classList.remove('show');
+                    document.getElementById('uploadArea').style.display = 'block';
+                }
+            };
+            
+            reader.onerror = function() {
+                log('❌ reader.onerror');
+                status.className = 'status error';
+                status.textContent = '文件读取失败';
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('uploadArea').style.display = 'block';
+            };
+            
+            log('开始读取文件...');
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 显示结果
+        function displayResults(data) {
+            log('displayResults() 开始，数据行数: ' + data.length);
+            
+            document.getElementById('loading').classList.remove('show');
+            document.getElementById('results').classList.add('show');
+            
+            // 简单的统计
+            const vmCount = data.length;
+            const totalVCPU = data.reduce((sum, row) => sum + (parseInt(row['CPU']) || parseInt(row['vCPU']) || 0), 0);
+            const totalMemory = data.reduce((sum, row) => sum + (parseInt(row['Memory']) || parseInt(row['RAM']) || 0), 0);
+            
+            // 显示统计卡片
+            const grid = document.getElementById('resultGrid');
+            grid.innerHTML = `
+                <div class="result-card">
+                    <h3>${vmCount}</h3>
+                    <p>虚拟机数量</p>
+                </div>
+                <div class="result-card">
+                    <h3>${totalVCPU}</h3>
+                    <p>vCPU总数</p>
+                </div>
+                <div class="result-card">
+                    <h3>${Math.round(totalMemory / 1024)}</h3>
+                    <p>内存总量 (GB)</p>
+                </div>
+            `;
+            
+            // 显示表格
+            const tbody = document.getElementById('vmTableBody');
+            tbody.innerHTML = '';
+            
+            const maxDisplay = Math.min(50, data.length);
+            for (let i = 0; i < maxDisplay; i++) {
+                const row = data[i];
+                const name = row['VM Name'] || row['Name'] || row['VM'] || '';
+                const os = row['OS'] || row['Guest OS'] || '';
+                const cpu = row['CPU'] || row['vCPU'] || '';
+                const memory = row['Memory'] || row['RAM'] || '';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${name}</td>
+                    <td>${os}</td>
+                    <td>${cpu}</td>
+                    <td>${memory}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+            
+            if (data.length > maxDisplay) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="4" style="text-align: center; color: #666;">... 还有 ${data.length - maxDisplay} 行数据，请导出查看全部</td>`;
+                tbody.appendChild(tr);
+            }
+            
+            log('displayResults() 完成');
+        }
+        
+        // 导出Excel
+        function exportToExcel() {
+            alert('✅ 导出功能需要完整实现');
+        }
+        
+        // 重置
+        function resetApp() {
+            log('resetApp()');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('uploadArea').style.display = 'block';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('status').className = 'status';
+            document.getElementById('status').textContent = '';
+        }
+        
+        log('脚本加载完成');
+    </script>
+</body>
+</html>
